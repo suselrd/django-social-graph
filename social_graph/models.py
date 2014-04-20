@@ -8,9 +8,56 @@ from django.utils.translation import ugettext_lazy as _
 from social_graph.fields import JSONField
 
 
+class EdgeTypeManager(models.Manager):
+    # Cache to avoid re-looking up EdgeType objects all over the place.
+    _cache = {}
+
+    def get(self, *args, **kwargs):
+        et = None
+        if 'id' in kwargs:
+            try:
+                et = self.__class__._cache[self.db][kwargs['id']]
+            except KeyError:
+                pass
+        elif 'pk' in kwargs:
+            try:
+                et = self.__class__._cache[self.db][kwargs['pk']]
+            except KeyError:
+                pass
+        elif 'name' in kwargs:
+            try:
+                et = self.__class__._cache[self.db][kwargs['name']]
+            except KeyError:
+                pass
+
+        if et is None:
+            et = super(EdgeTypeManager, self).get(*args, **kwargs)
+            self._add_to_cache(self.db, et)
+        return et
+
+    def _add_to_cache(self, using, et):
+        self.__class__._cache.setdefault(using, {})[et.id] = et
+        self.__class__._cache.setdefault(using, {})[et.name] = et
+
+    def rem_from_cache(self, using, et):
+        try:
+            del self.__class__._cache.setdefault(using, {})[et.id]
+            del self.__class__._cache.setdefault(using, {})[et.name]
+        except KeyError:
+            pass
+
+    def clear_cache(self):
+        """
+        Clear out the edge-type cache.
+        """
+        self.__class__._cache.clear()
+
+
 class EdgeType(models.Model):
     name = models.CharField(_('name'), max_length=100, unique=True)
     read_as = models.CharField(_('read as'), max_length=100)
+
+    objects = EdgeTypeManager()
 
     class Meta:
         ordering = ['name']
@@ -23,15 +70,84 @@ class EdgeType(models.Model):
     def setting_name(self):
         return self.name.upper()
 
+    def delete(self, using=None):
+        self.__class__.objects.rem_from_cache(using, self)
+        super(EdgeType, self).delete(using)
+
+
+class EdgeTypeAssociationManager(models.Manager):
+    # Cache to avoid re-looking up EdgeTypeAssociation objects all over the place.
+    _cache = {}
+    _direct_cache = {}
+    _inverse_cache = {}
+
+    def get(self, *args, **kwargs):
+        eta = None
+        if 'id' in kwargs:
+            try:
+                eta = self.__class__._cache[self.db][kwargs['id']]
+            except KeyError:
+                pass
+        elif 'pk' in kwargs:
+            try:
+                eta = self.__class__._cache[self.db][kwargs['pk']]
+            except KeyError:
+                pass
+        if eta is None:
+            eta = super(EdgeTypeAssociationManager, self).get(*args, **kwargs)
+            self._add_to_cache(self.db, eta)
+        return eta
+
+    def get_for_direct_edge_type(self, et):
+        try:
+            eta = self.__class__._direct_cache[self.db][et.id]
+        except KeyError:
+            eta = self.get(direct=et)
+            self._add_to_cache(self.db, eta)
+        return eta
+
+    def get_for_inverse_edge_type(self, et):
+        try:
+            eta = self.__class__._inverse_cache[self.db][et.id]
+        except KeyError:
+            eta = self.get(inverse=et)
+            self._add_to_cache(self.db, eta)
+        return eta
+
+    def _add_to_cache(self, using, eta):
+        self.__class__._cache.setdefault(using, {})[eta.id] = eta
+        self.__class__._direct_cache.setdefault(using, {})[eta.direct.id] = eta
+        self.__class__._inverse_cache.setdefault(using, {})[eta.inverse.id] = eta
+
+    def rem_from_cache(self, using, eta):
+        try:
+            del self.__class__._cache.setdefault(using, {})[eta.id]
+            del self.__class__._direct_cache.setdefault(using, {})[eta.direct.id]
+            del self.__class__._inverse_cache.setdefault(using, {})[eta.inverse.id]
+        except KeyError:
+            pass
+
+    def clear_cache(self):
+        """
+        Clear out the edge-type-association cache.
+        """
+        self.__class__._cache.clear()
+
 
 class EdgeTypeAssociation(models.Model):
     direct = models.ForeignKey(EdgeType, unique=True, related_name='is_direct_in')
     inverse = models.ForeignKey(EdgeType, unique=True, related_name='is_inverse_in')
 
+    objects = EdgeTypeAssociationManager()
+
     def __unicode__(self):
         return ("%(direct)s <-> %(inverse)s"
                 % {'direct': self.direct.name,
                    'inverse': self.inverse.name})
+
+    def delete(self, using=None):
+        self.__class__.objects.rem_from_cache(using, self)
+        super(EdgeTypeAssociation, self).delete(using)
 
 
 class Edge(models.Model):

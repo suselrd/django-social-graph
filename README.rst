@@ -10,6 +10,12 @@ Includes the implementation of django-redis-cache (by Sean Bleier).
 Changelog
 =========
 
+0.1.1
+-----
+
+EdgeType and EdgeTypeAssociation cache implementation, to prevent hitting the database unnecessarily to "get"
+an EdgeType or EdgeTypeAssociation
+
 0.1.0
 -----
 

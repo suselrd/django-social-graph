@@ -278,6 +278,36 @@ class SocialGraphTest(TestCase):
         Graph()
         self.assertEqual(self.graph._instance_count, 1)
 
+    def test_edge_type_manager(self):
+        id = self.relationships['like'].id
+        name = self.relationships['like'].name
+        # first time we call get()
+        self.assertEqual(EdgeType.objects.get(name=name), self.relationships['like'])
+        self.assertIn(id, EdgeType.objects._cache[EdgeType.objects.db])
+        self.assertEqual(EdgeType.objects._cache[EdgeType.objects.db][id], self.relationships['like'])
+        self.assertIn(name, EdgeType.objects._cache[EdgeType.objects.db])
+        self.assertEqual(EdgeType.objects._cache[EdgeType.objects.db][name], self.relationships['like'])
+        # from second time we call get() on, the edge type should be got from cache, without hitting the db
+        self.assertEqual(EdgeType.objects.get(name=name), self.relationships['like'])
+        self.assertEqual(EdgeType.objects.get(id=id), self.relationships['like'])
+        self.assertEqual(EdgeType.objects.get(pk=id), self.relationships['like'])
+        # clear cache
+        EdgeType.objects.clear_cache()
+        self.assertNotIn(EdgeType.objects.db, EdgeType.objects._cache)
+
+        self.relationships['like'].delete()
+
+    def test_edge_type_association_manager(self):
+        association = EdgeTypeAssociation.objects.get_for_direct_edge_type(self.relationships['like'])
+        self.assertEqual(association.inverse, self.relationships['liked_by'])
+        self.assertIn(association.id, EdgeTypeAssociation.objects._cache[EdgeTypeAssociation.objects.db])
+        self.assertEqual(EdgeTypeAssociation.objects._cache[EdgeTypeAssociation.objects.db][association.id], association)
+        self.assertIn(association.direct.id, EdgeTypeAssociation.objects._direct_cache[EdgeTypeAssociation.objects.db])
+        self.assertEqual(EdgeTypeAssociation.objects._direct_cache[EdgeTypeAssociation.objects.db][association.direct.id], association)
+        self.assertIn(association.inverse.id, EdgeTypeAssociation.objects._inverse_cache[EdgeTypeAssociation.objects.db])
+        self.assertEqual(EdgeTypeAssociation.objects._inverse_cache[EdgeTypeAssociation.objects.db][association.inverse.id], association)
+
+
 if __name__ == '__main__':
     import unittest
     unittest.main()

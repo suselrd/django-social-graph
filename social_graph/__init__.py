@@ -4,7 +4,7 @@ from django.views.generic import DetailView
 from social_graph.api import Graph, TO_NODE, ATTRIBUTES, TIME
 from social_graph.consistency_enforcers import SymmetricEdgeManager, SymmetricEdgeTypeAssociationManager, \
     EdgeCounter
-from social_graph.models import Edge, EdgeTypeAssociation
+from social_graph.models import Edge, EdgeTypeAssociation, EdgeType
 from social_graph.signals import object_visited
 
 # MAKE THE GRAPH API VISIBLE AT APP LEVEL
@@ -40,3 +40,6 @@ if DETAIL_VIEW_SEND_VISITED_SIGNAL:
         return result
 
     setattr(DetailView, 'get_object', get_object)
+
+# Clear the EdgeType cache
+EdgeType.objects.clear_cache()
