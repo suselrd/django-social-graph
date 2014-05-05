@@ -102,8 +102,8 @@ class Graph(object):
 
     # Edges Writing
     @atomic
-    def edge_add(self, from_node, to_node, etype, auto=False, **kwargs):
-        edge = Edge.objects.create(fromNode=from_node, toNode=to_node, type=etype, auto=auto, **kwargs)
+    def edge_add(self, from_node, to_node, etype, attributes="{}", auto=False):
+        edge = Edge.objects.create(fromNode=from_node, toNode=to_node, type=etype, attributes=attributes, auto=auto)
         # write to cache, find all cached values that this new edge impacts on, and update them
         ctype1 = ContentType.objects.get_for_model(from_node)
         ctype2 = ContentType.objects.get_for_model(to_node)
@@ -131,14 +131,17 @@ class Graph(object):
             transaction.add_to_sorted_set(list_key, edge_rep, mktime(edge.time.timetuple()))
         transaction.execute()
         signals.edge_created.send(sender=Graph, instance=edge)
-        return True
+        return edge
 
     @atomic
     def edge_change(self, from_node, to_node, etype, attributes):
         ctype1 = ContentType.objects.get_for_model(from_node)
         ctype2 = ContentType.objects.get_for_model(to_node)
-        edge = Edge.objects.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
-                                toNode_type=ctype2, type=etype)
+        try:
+            edge = Edge.objects.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
+                                    toNode_type=ctype2, type=etype)
+        except ObjectDoesNotExist:
+            return self.edge_add(from_node, to_node, etype, attributes)
         edge.delete()
         # delete from cache: find all cached values that this new edge impacts on, and update them
         edge_key = (EDGE_KEY_FORMAT
@@ -166,7 +169,7 @@ class Graph(object):
         transaction.execute()
 
         signals.edge_updated.send(sender=Graph, instance=new_edge)
-        return True
+        return new_edge
 
     @atomic
     def edge_delete(self, from_node, to_node, etype):
