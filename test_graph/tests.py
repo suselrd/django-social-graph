@@ -1,8 +1,10 @@
 from time import sleep, time
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import User, Group
+from django import forms
 from django.test import TestCase
 from social_graph.api import Graph, TO_NODE, ATTRIBUTES
+from social_graph.forms import BaseEdgeForm, SpecificTypeEdgeForm
 from social_graph.models import EdgeType, EdgeTypeAssociation, Edge
 from social_graph.signals import edge_created, edge_deleted, object_created, object_deleted, edge_updated, object_visited
 from test_graph.models import A, B
@@ -306,6 +308,84 @@ class SocialGraphTest(TestCase):
         self.assertEqual(EdgeTypeAssociation.objects._direct_cache[EdgeTypeAssociation.objects.db][association.direct.id], association)
         self.assertIn(association.inverse.id, EdgeTypeAssociation.objects._inverse_cache[EdgeTypeAssociation.objects.db])
         self.assertEqual(EdgeTypeAssociation.objects._inverse_cache[EdgeTypeAssociation.objects.db][association.inverse.id], association)
+
+    def test_edge_form_descendants(self):
+        like = self.relationships['like']
+
+        class LikeForm(BaseEdgeForm):
+            edge_origin = 'user'
+            edge_target = 'group'
+            edge_attributes = 'attributes'
+            update = False
+
+            user = forms.ModelChoiceField(User.objects.all())
+            group = forms.ModelChoiceField(Group.objects.all())
+            attributes = forms.CharField(widget=forms.Textarea)
+
+            def get_etype(self):
+                return like
+
+        data = {
+            'user': self.users[0].pk,
+            'group': self.objects['advanced'].pk,
+            'attributes': '{"rating": "5"}',
+        }
+
+        form = LikeForm(dict(**data))
+        self.assertTrue(form.is_valid())
+
+        edge = form.save()
+
+        # then check the edge list
+        self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like']), 1)
+        self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
+                                                 fromNode_type=ContentType.objects.get_for_model(self.users[0]),
+                                                 type=self.relationships['like'])), 1)
+        edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10)
+        self.assertEqual(edges[0][TO_NODE].name, self.objects['advanced'].name)
+        # and check the inverse edge list
+        self.assertEqual(self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by']), 1)
+        edges = self.graph.edge_range(self.objects['advanced'], self.relationships['liked_by'], 0, 10)
+        self.assertEqual(edges[0][TO_NODE].username, self.users[0].username)
+
+
+    def test_specific_type_edge_form_descendants(self):
+        like = self.relationships['like']
+
+        class LikeForm(SpecificTypeEdgeForm):
+            etype = like
+            edge_origin = 'user'
+            edge_target = 'group'
+            edge_attributes = 'attributes'
+            update = False
+
+            user = forms.ModelChoiceField(User.objects.all())
+            group = forms.ModelChoiceField(Group.objects.all())
+            attributes = forms.CharField(widget=forms.Textarea)
+
+
+        data = {
+            'user': self.users[0].pk,
+            'group': self.objects['advanced'].pk,
+            'attributes': '{"rating": "5"}',
+        }
+
+        form = LikeForm(dict(**data))
+        self.assertTrue(form.is_valid())
+
+        edge = form.save()
+
+        # then check the edge list
+        self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like']), 1)
+        self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
+                                                 fromNode_type=ContentType.objects.get_for_model(self.users[0]),
+                                                 type=self.relationships['like'])), 1)
+        edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10)
+        self.assertEqual(edges[0][TO_NODE].name, self.objects['advanced'].name)
+        # and check the inverse edge list
+        self.assertEqual(self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by']), 1)
+        edges = self.graph.edge_range(self.objects['advanced'], self.relationships['liked_by'], 0, 10)
+        self.assertEqual(edges[0][TO_NODE].username, self.users[0].username)
 
 
 if __name__ == '__main__':
