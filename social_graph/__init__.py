@@ -31,15 +31,15 @@ post_delete.connect(EdgeCounter.decrease_count, sender=Edge)
 DETAIL_VIEW_SEND_VISITED_SIGNAL = getattr(settings, 'DETAIL_VIEW_SEND_VISITED_SIGNAL', True)
 
 if DETAIL_VIEW_SEND_VISITED_SIGNAL:
-    normal_method = getattr(DetailView, 'get_object')
+    normal_method = getattr(DetailView, 'get')
 
-    def get_object(*args, **kwargs):
-        result = normal_method(*args, **kwargs)
-        if Graph.is_registered_type(result.__class__):
-            object_visited.send(DetailView, instance=result)
+    def get(self, request, *args, **kwargs):
+        result = normal_method(self, request, *args, **kwargs)
+        if Graph.is_registered_type(self.object.__class__):
+            object_visited.send(DetailView, instance=self.object, user=request.user)
         return result
 
-    setattr(DetailView, 'get_object', get_object)
+    setattr(DetailView, 'get', get)
 
 # Clear the EdgeType cache
 EdgeType.objects.clear_cache()
