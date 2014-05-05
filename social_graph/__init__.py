@@ -1,11 +1,13 @@
 from django.conf import settings
 from django.db.models.signals import post_save, post_delete
 from django.views.generic import DetailView
-from social_graph.api import Graph, TO_NODE, ATTRIBUTES, TIME
-from social_graph.consistency_enforcers import SymmetricEdgeManager, SymmetricEdgeTypeAssociationManager, \
+from .api import Graph, TO_NODE, ATTRIBUTES, TIME
+from .consistency_enforcers import SymmetricEdgeManager, SymmetricEdgeTypeAssociationManager, \
     EdgeCounter
-from social_graph.models import Edge, EdgeTypeAssociation, EdgeType
-from social_graph.signals import object_visited
+from .models import Edge, EdgeTypeAssociation, EdgeType
+from .signals import object_visited
+from .forms import BaseEdgeForm, SpecificTypeEdgeForm
+from .decorators import crud_aware
 
 # MAKE THE GRAPH API VISIBLE AT APP LEVEL
 

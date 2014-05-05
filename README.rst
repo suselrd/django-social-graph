@@ -10,6 +10,17 @@ Includes the implementation of django-redis-cache (by Sean Bleier).
 Changelog
 =========
 
+0.1.2
+-----
+
+Added the BaseEdgeForm and the SpecificTypeEdgeForm, to be inherited by all forms that intend to save and Edge object.
+This forms' save() operation uses the Graph api, instead of Django's ORM directly.
+
+Added the authenticated user argument to the object_visited signal.
+
+Api operations edge_add and edge_change now return the created/changed edge.
+If the edge_change operation determine that the target edge doesn't exist, it automatically calls edge_add operation.
+
 0.1.1
 -----
 
