@@ -20,7 +20,7 @@ class SymmetricEdgeManager(object):
                                      type=symmetric_type)
                 except ObjectDoesNotExist:
                     graph = Graph()
-                    graph.edge_add(instance.toNode, instance.fromNode, symmetric_type, auto=True)
+                    graph.edge_add(instance.toNode, instance.fromNode, symmetric_type, instance.attributes, auto=True)
             except ObjectDoesNotExist:
                 pass
 
