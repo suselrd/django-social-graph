@@ -10,6 +10,13 @@ Includes the implementation of django-redis-cache (by Sean Bleier).
 Changelog
 =========
 
+0.1.3
+-----
+
+Symmetric edges are now created with the same attributes as their original edges.
+
+EdgeForm allows to set a list of "edge attribute" fields" from which it takes the corresponding values and builds the attributes dictionary for the edge to save.
+
 0.1.2
 -----
 
