@@ -8,7 +8,7 @@ class BaseEdgeForm(forms.Form):
     edge_origin = 'fromNode'
     edge_target = 'toNode'
     edge_type = 'type'
-    edge_attributes = 'attributes'
+    edge_attributes = ['attribute', ]
     update = False
 
     _graph = Graph()
@@ -36,7 +36,12 @@ class BaseEdgeForm(forms.Form):
         return self.cleaned_data[self.edge_target]
 
     def get_attributes(self):
-        return self.cleaned_data.setdefault(self.edge_attributes, '{}')
+        attributes = {}
+        for edge_attribute in self.edge_attributes:
+            value = self.cleaned_data.setdefault(edge_attribute, None)
+            if value is not None:
+                attributes.update({edge_attribute: value})
+        return attributes
 
     def save(self):
         if self.update:

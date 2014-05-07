@@ -315,12 +315,12 @@ class SocialGraphTest(TestCase):
         class LikeForm(BaseEdgeForm):
             edge_origin = 'user'
             edge_target = 'group'
-            edge_attributes = 'attributes'
+            edge_attributes = ['rating', ]
             update = False
 
             user = forms.ModelChoiceField(User.objects.all())
             group = forms.ModelChoiceField(Group.objects.all())
-            attributes = forms.CharField(widget=forms.Textarea)
+            rating = forms.CharField()
 
             def get_etype(self):
                 return like
@@ -328,7 +328,7 @@ class SocialGraphTest(TestCase):
         data = {
             'user': self.users[0].pk,
             'group': self.objects['advanced'].pk,
-            'attributes': '{"rating": "5"}',
+            'rating': '5',
         }
 
         form = LikeForm(dict(**data))
@@ -347,7 +347,6 @@ class SocialGraphTest(TestCase):
         self.assertEqual(self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by']), 1)
         edges = self.graph.edge_range(self.objects['advanced'], self.relationships['liked_by'], 0, 10)
         self.assertEqual(edges[0][TO_NODE].username, self.users[0].username)
-
 
     def test_specific_type_edge_form_descendants(self):
         like = self.relationships['like']
@@ -356,24 +355,26 @@ class SocialGraphTest(TestCase):
             etype = like
             edge_origin = 'user'
             edge_target = 'group'
-            edge_attributes = 'attributes'
+            edge_attributes = ['rating', 'favorite']
             update = False
 
             user = forms.ModelChoiceField(User.objects.all())
             group = forms.ModelChoiceField(Group.objects.all())
-            attributes = forms.CharField(widget=forms.Textarea)
+            rating = forms.CharField()
+            favorite = forms.BooleanField()
 
 
         data = {
             'user': self.users[0].pk,
             'group': self.objects['advanced'].pk,
-            'attributes': '{"rating": "5"}',
+            'rating': '5',
+            'favorite': True
         }
 
         form = LikeForm(dict(**data))
         self.assertTrue(form.is_valid())
 
-        edge = form.save()
+        form.save()
 
         # then check the edge list
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like']), 1)
@@ -382,10 +383,12 @@ class SocialGraphTest(TestCase):
                                                  type=self.relationships['like'])), 1)
         edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10)
         self.assertEqual(edges[0][TO_NODE].name, self.objects['advanced'].name)
+        self.assertEqual(edges[0][ATTRIBUTES], {'rating': '5', 'favorite': True})
         # and check the inverse edge list
         self.assertEqual(self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by']), 1)
         edges = self.graph.edge_range(self.objects['advanced'], self.relationships['liked_by'], 0, 10)
         self.assertEqual(edges[0][TO_NODE].username, self.users[0].username)
+        self.assertEqual(edges[0][ATTRIBUTES], {'rating': '5', 'favorite': True})
 
 
 if __name__ == '__main__':
