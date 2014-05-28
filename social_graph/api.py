@@ -88,9 +88,9 @@ class Graph(object):
         if not sender in Graph._nodeTypes:
             return
         if created:
-            signals.object_created.send(sender=Graph, instance=instance)
+            signals.object_created.send(sender=sender, instance=instance)
         else:
-            signals.object_updated.send(sender=Graph, instance=instance)
+            signals.object_updated.send(sender=sender, instance=instance)
 
     #noinspection PyUnusedLocal
     @staticmethod
@@ -98,7 +98,7 @@ class Graph(object):
     def _node_delete(sender, instance, **kwargs):
         if not sender in Graph._nodeTypes:
             return
-        signals.object_deleted.send(sender=Graph, instance=instance)
+        signals.object_deleted.send(sender=sender, instance=instance)
 
     # Edges Writing
     @atomic
@@ -130,7 +130,7 @@ class Graph(object):
             edge_rep = (edge.toNode, edge.attributes, edge.time)
             transaction.add_to_sorted_set(list_key, edge_rep, mktime(edge.time.timetuple()))
         transaction.execute()
-        signals.edge_created.send(sender=Graph, instance=edge)
+        signals.edge_created.send(sender=etype, instance=edge)
         return edge
 
     @atomic
@@ -168,7 +168,7 @@ class Graph(object):
             transaction.add_to_sorted_set(list_key, edge_rep, mktime(new_edge.time.timetuple()))
         transaction.execute()
 
-        signals.edge_updated.send(sender=Graph, instance=new_edge)
+        signals.edge_updated.send(sender=etype, instance=new_edge)
         return new_edge
 
     @atomic
@@ -201,7 +201,7 @@ class Graph(object):
             edge_rep = (edge.toNode, edge.attributes, edge.time)
             transaction.rem_from_sorted_set(list_key, edge_rep)
         transaction.execute()
-        signals.edge_deleted.send(sender=Graph, instance=edge)
+        signals.edge_deleted.send(sender=etype, instance=edge)
         return True
 
     # Edges Reading

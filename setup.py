@@ -5,7 +5,7 @@ setup(
     #url = "http://github.com/suselrd/django-social-graph/",
     author = "Susel Ruiz Duran",
     author_email = "suselrd@gmail.com",
-    version = "0.1.3",
+    version = "0.1.4",
     packages = ["social_graph", 'redis_cache'],
     description = "Social Graph for Django + Redis",
     install_requires=['redis>=2.4.5', 'django>=1.6.1', ],

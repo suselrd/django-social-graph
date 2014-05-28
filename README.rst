@@ -10,6 +10,14 @@ Includes the implementation of django-redis-cache (by Sean Bleier).
 Changelog
 =========
 
+0.1.4
+-----
+
+More specific signal senders: 
+* object_created, object_updated and object_deleted sender is the model class
+* edge_created, edge_updated and edge_deleted sender is the edge type
+
+
 0.1.3
 -----
 
