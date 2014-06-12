@@ -1,8 +1,9 @@
 # coding=utf-8
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import F
 from social_graph.api import Graph
-from social_graph.models import EdgeTypeAssociation, Edge, EdgeCount
+from social_graph.models import EdgeTypeAssociation, Edge, EdgeCount, EdgeType
 
 
 class SymmetricEdgeManager(object):
@@ -58,23 +59,33 @@ class SymmetricEdgeTypeAssociationManager(object):
 class EdgeCounter(object):
     @staticmethod
     def increase_count(sender, instance, created, **kwargs):
-        try:
-            counter = EdgeCount.objects.get(fromNode_pk=instance.fromNode.pk,
-                                            fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
-                                            type=instance.type)
-        except ObjectDoesNotExist:  # when this is the first edge of this type created for a node
-            counter = EdgeCount(fromNode=instance.fromNode,
-                                type=instance.type)  # create a new counter with count 0
-        counter.count += 1
-        counter.save()
+        counter, is_new = EdgeCount.objects.get_or_create(
+            fromNode_pk=instance.fromNode.pk,
+            fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
+            type=instance.type,
+            defaults={
+                'count': 1
+            }
+        )
+        if not is_new:
+            counter.count = F('count') + 1
+            counter.save()
     @staticmethod
     def decrease_count(sender, instance, **kwargs):
-        try:
-            counter = EdgeCount.objects.get(fromNode_pk=instance.fromNode.pk,
-                                            fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
-                                            type=instance.type)
-            counter.count -= 1
-        except ObjectDoesNotExist:  # this case should never happen
-            counter = EdgeCount(fromNode=instance.fromNode,
-                                type=instance.type)
-        counter.save()
+        counter, is_new = EdgeCount.objects.get_or_create(fromNode_pk=instance.fromNode.pk,
+                                                          fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
+                                                          type=instance.type)
+        if not is_new:  # is_new case should never happen!!
+            counter.count = F('count') - 1
+            counter.save()
+
+
+class EdgeCleaner(object):
+    @staticmethod
+    def clean_edges(sender, instance, **kwargs):
+        if sender in (Edge, EdgeType, EdgeTypeAssociation, EdgeCount):
+            return
+        graph = Graph()
+        types = EdgeType.objects.all()
+        for etype in types:
+            graph._edges_delete(instance, etype)

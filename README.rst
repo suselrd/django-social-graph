@@ -10,6 +10,12 @@ Includes the implementation of django-redis-cache (by Sean Bleier).
 Changelog
 =========
 
+0.1.5
+-----
+New EdgeCleaner consistency enforcer, to erase all edges belonging to a deleted object.
+Improvement in EdgeCounter consistency enforcers to make it thread safe.
+
+
 0.1.4
 -----
 

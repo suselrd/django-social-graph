@@ -223,8 +223,8 @@ class SocialGraphTest(TestCase):
         self.visited_flag = True
 
     def test_model_with_crud_aware_decorator(self):
-        object_created.connect(self._created_flag_on, Graph)
-        object_deleted.connect(self._deleted_flag_on, Graph)
+        object_created.connect(self._created_flag_on, A)
+        object_deleted.connect(self._deleted_flag_on, A)
         object_visited.connect(self._visited_flag_on)
 
         self.assertEqual(self.created_flag, False)
@@ -244,13 +244,13 @@ class SocialGraphTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.visited_flag, True)
 
-        object_created.disconnect(self._created_flag_on, Graph)
-        object_deleted.disconnect(self._deleted_flag_on, Graph)
+        object_created.disconnect(self._created_flag_on, A)
+        object_deleted.disconnect(self._deleted_flag_on, A)
         object_visited.disconnect(self._visited_flag_on)
 
     def test_model_without_crud_aware_decorator(self):
-        object_created.connect(self._created_flag_on, Graph)
-        object_deleted.connect(self._deleted_flag_on, Graph)
+        object_created.connect(self._created_flag_on, B)
+        object_deleted.connect(self._deleted_flag_on, B)
         object_visited.connect(self._visited_flag_on)
 
         self.assertEqual(self.created_flag, False)
@@ -270,8 +270,8 @@ class SocialGraphTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.visited_flag, False)
 
-        object_created.disconnect(self._created_flag_on, Graph)
-        object_deleted.disconnect(self._deleted_flag_on, Graph)
+        object_created.disconnect(self._created_flag_on, B)
+        object_deleted.disconnect(self._deleted_flag_on, B)
         object_visited.disconnect(self._visited_flag_on)
 
     #noinspection PyProtectedMember

@@ -178,7 +178,7 @@ class Graph(object):
         edge = Edge.objects.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
                                 toNode_type=ctype2, type=etype)
         edge.delete()
-        # delete from cache: find all cached values that this new edge impacts on, and update them
+        # delete from cache: find all cached values that this edge impacts on, and update them
         edge_key = (EDGE_KEY_FORMAT
                     % {'ctype1': ctype1.pk,
                        'pk1': from_node.pk,
@@ -202,6 +202,41 @@ class Graph(object):
             transaction.rem_from_sorted_set(list_key, edge_rep)
         transaction.execute()
         signals.edge_deleted.send(sender=etype, instance=edge)
+        return True
+
+    @atomic
+    def _edges_delete(self, from_node, etype):
+        ctype1 = ContentType.objects.get_for_model(from_node)
+        edges = Edge.objects.filter(fromNode_pk=from_node.pk, fromNode_type=ctype1, type=etype)
+        edges.delete()
+        # delete from cache: find all cached values that this edges impacts on, and delete them
+        count_key = (COUNT_KEY_FORMAT
+                     % {'ctype': ctype1.pk,
+                        'pk': from_node.pk,
+                        'etype': etype.pk})
+        list_key = (EDGE_LIST_KEY_FORMAT
+                    % {'ctype': ctype1.pk,
+                       'pk': from_node.pk,
+                       'etype': etype.pk})
+
+        if list_key in self.cache:
+            count = self.edge_count(from_node, etype)
+            edge_list = self.cache.sorted_set_rev_range(list_key, 0, count)
+            transaction = self.cache.pipeline()
+            for node, attributes, time in edge_list:
+                ctype2 = ContentType.objects.get_for_model(node)
+                edge_key = (EDGE_KEY_FORMAT
+                            % {'ctype1': ctype1.pk,
+                               'pk1': from_node.pk,
+                               'etype': etype.pk,
+                               'ctype2': ctype2.pk,
+                               'pk2': node.pk})
+                transaction.delete(edge_key)
+            transaction.delete(list_key)
+            transaction.delete(count_key)
+            transaction.execute()
+        elif count_key in self.cache:
+            self.cache.delete(count_key)
         return True
 
     # Edges Reading
@@ -300,18 +335,23 @@ class Graph(object):
                 to_look.append(node)
         if len(to_look):
             edges = Edge.objects.filter(fromNode_pk=from_node.pk, fromNode_type=ctype, type=etype)
+            list_key = (EDGE_LIST_KEY_FORMAT
+                        % {'ctype': ctype.pk,
+                           'pk': from_node.pk,
+                           'etype': etype.pk})
             transaction = self.cache.pipeline()
             for edge in edges:
+                edge_rep = (edge.toNode, edge.attributes, edge.time)
+                transaction.add_to_sorted_set(list_key, edge_rep, mktime(edge.time.timetuple()))
+                edge_key = (EDGE_KEY_FORMAT
+                            % {'ctype1': edge.fromNode_type.pk,
+                               'pk1': edge.fromNode_pk,
+                               'etype': etype.pk,
+                               'ctype2': edge.toNode_type.pk,
+                               'pk2': edge.toNode_pk})
+                transaction.set(edge_key, edge)
                 if edge.toNode in to_look:
-                    edge_rep = (edge.toNode, edge.attributes, edge.time)
                     result.append(edge_rep)
-                    edge_key = (EDGE_KEY_FORMAT
-                                % {'ctype1': edge.fromNode_type.pk,
-                                   'pk1': edge.fromNode_pk,
-                                   'etype': etype.pk,
-                                   'ctype2': edge.toNode_type.pk,
-                                   'pk2': edge.toNode_pk})
-                    transaction.set(edge_key, edge)
             transaction.execute()
         return result
 

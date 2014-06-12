@@ -2,8 +2,12 @@ from django.conf import settings
 from django.db.models.signals import post_save, post_delete
 from django.views.generic import DetailView
 from .api import Graph, TO_NODE, ATTRIBUTES, TIME
-from .consistency_enforcers import SymmetricEdgeManager, SymmetricEdgeTypeAssociationManager, \
-    EdgeCounter
+from .consistency_enforcers import (
+    SymmetricEdgeManager,
+    SymmetricEdgeTypeAssociationManager,
+    EdgeCounter,
+    EdgeCleaner
+)
 from .models import Edge, EdgeTypeAssociation, EdgeType
 from .signals import object_visited
 from .forms import BaseEdgeForm, SpecificTypeEdgeForm
@@ -26,6 +30,7 @@ post_delete.connect(SymmetricEdgeTypeAssociationManager.delete_symmetric_associa
 
 post_save.connect(EdgeCounter.increase_count, sender=Edge)
 post_delete.connect(EdgeCounter.decrease_count, sender=Edge)
+post_delete.connect(EdgeCleaner.clean_edges)
 
 
 # DECORATE the get_object() method for DetailView generic class, to send object_visited signal
