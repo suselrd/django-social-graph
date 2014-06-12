@@ -328,6 +328,14 @@ class CacheClass(BaseCache):
 
     # New by Susel Ruiz Duran
 
+    def get_rank_in_sorted_set(self, key, value, version=None, client=None):
+        if not client:
+            client = self._client
+        key = self.make_key(key, version=version)
+        if not isinstance(value, int) or isinstance(value, bool):
+            value = pickle.dumps(value)
+        return client.zrank(key, value)
+
     def add_to_sorted_set(self, key, value, score, version=None, client=None):
         if not client:
             client = self._client
@@ -343,6 +351,14 @@ class CacheClass(BaseCache):
         if not isinstance(value, int) or isinstance(value, bool):
             value = pickle.dumps(value)
         return client.zrem(key, value)
+
+    def rem_from_sorted_set_by_rank(self, key, min_rank, max_rank=None, version=None, client=None):
+        if not client:
+            client = self._client
+        key = self.make_key(key, version=version)
+        if not max_rank:
+            max_rank = min_rank
+        return client.zremrangebyrank(key, min_rank, max_rank)
 
     def sorted_set_range(self, key, start, end, version=None, client=None):
         if not client:
