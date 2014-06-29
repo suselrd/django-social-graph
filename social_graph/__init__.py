@@ -43,7 +43,7 @@ if DETAIL_VIEW_SEND_VISITED_SIGNAL:
     def get(self, request, *args, **kwargs):
         result = normal_method(self, request, *args, **kwargs)
         if Graph.is_registered_type(self.object.__class__):
-            object_visited.send(DetailView, instance=self.object, user=request.user)
+            object_visited.send(self.object.__class__, instance=self.object, user=request.user)
         return result
 
     setattr(DetailView, 'get', get)
