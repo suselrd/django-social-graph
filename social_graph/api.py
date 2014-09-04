@@ -37,6 +37,7 @@ class Graph(object):
     _instance_count = 0
 
     def __init__(self):
+        # A different cache instance SHOULD be defined for each Site
         try:
             self.cache = get_cache(GRAPH_CACHE_ALIAS)
         except InvalidCacheBackendError:
@@ -103,7 +104,7 @@ class Graph(object):
     # Edges Writing
     @atomic
     def edge_add(self, from_node, to_node, etype, attributes="{}", auto=False):
-        edge = Edge.objects.create(fromNode=from_node, toNode=to_node, type=etype, attributes=attributes, auto=auto)
+        edge = Edge.on_site.create(fromNode=from_node, toNode=to_node, type=etype, attributes=attributes, auto=auto)
         # write to cache, find all cached values that this new edge impacts on, and update them
         ctype1 = ContentType.objects.get_for_model(from_node)
         ctype2 = ContentType.objects.get_for_model(to_node)
@@ -138,7 +139,7 @@ class Graph(object):
         ctype1 = ContentType.objects.get_for_model(from_node)
         ctype2 = ContentType.objects.get_for_model(to_node)
         try:
-            edge = Edge.objects.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
+            edge = Edge.on_site.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
                                     toNode_type=ctype2, type=etype)
         except ObjectDoesNotExist:
             return self.edge_add(from_node, to_node, etype, attributes)
@@ -160,7 +161,7 @@ class Graph(object):
             edge_rep = (edge.toNode, edge.attributes, edge.time)
             transaction.rem_from_sorted_set(list_key, edge_rep)
 
-        new_edge = Edge.objects.create(fromNode=from_node, toNode=to_node, type=etype, attributes=attributes)
+        new_edge = Edge.on_site.create(fromNode=from_node, toNode=to_node, type=etype, attributes=attributes)
 
         transaction.set(edge_key, new_edge)
         if list_key in self.cache:
@@ -175,7 +176,7 @@ class Graph(object):
     def edge_delete(self, from_node, to_node, etype):
         ctype1 = ContentType.objects.get_for_model(from_node)
         ctype2 = ContentType.objects.get_for_model(to_node)
-        edge = Edge.objects.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
+        edge = Edge.on_site.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
                                 toNode_type=ctype2, type=etype)
         edge.delete()
         # delete from cache: find all cached values that this edge impacts on, and update them
@@ -207,7 +208,7 @@ class Graph(object):
     @atomic
     def _edges_delete(self, from_node, etype):
         ctype1 = ContentType.objects.get_for_model(from_node)
-        edges = Edge.objects.filter(fromNode_pk=from_node.pk, fromNode_type=ctype1, type=etype)
+        edges = Edge.on_site.filter(fromNode_pk=from_node.pk, fromNode_type=ctype1, type=etype)
         edges.delete()
         # delete from cache: find all cached values that this edges impacts on, and delete them
         count_key = (COUNT_KEY_FORMAT
@@ -258,7 +259,7 @@ class Graph(object):
         count = self.cache.get(key)
         if count is None:
             try:
-                count = EdgeCount.objects.get(fromNode_pk=from_node.pk, fromNode_type=ctype, type=etype).count
+                count = EdgeCount.on_site.get(fromNode_pk=from_node.pk, fromNode_type=ctype, type=etype).count
             except ObjectDoesNotExist:
                 count = 0
             self.cache.set(key, int(count))
@@ -287,7 +288,7 @@ class Graph(object):
             if len(edges) != 0:
                 return edges
             else:
-                edge_list = Edge.objects.filter(fromNode_pk=from_node.pk, fromNode_type=ctype, type=etype)
+                edge_list = Edge.on_site.filter(fromNode_pk=from_node.pk, fromNode_type=ctype, type=etype)
                 transaction = self.cache.pipeline()
                 for edge in edge_list:
                     edge_key = (EDGE_KEY_FORMAT
@@ -334,7 +335,7 @@ class Graph(object):
             else:
                 to_look.append(node)
         if len(to_look):
-            edges = Edge.objects.filter(fromNode_pk=from_node.pk, fromNode_type=ctype, type=etype)
+            edges = Edge.on_site.filter(fromNode_pk=from_node.pk, fromNode_type=ctype, type=etype)
             list_key = (EDGE_LIST_KEY_FORMAT
                         % {'ctype': ctype.pk,
                            'pk': from_node.pk,
@@ -381,7 +382,7 @@ class Graph(object):
             if len(edges) != 0:
                 return edges
             else:
-                edge_list = Edge.objects.filter(fromNode_pk=from_node.pk, fromNode_type=ctype, type=etype)
+                edge_list = Edge.on_site.filter(fromNode_pk=from_node.pk, fromNode_type=ctype, type=etype)
                 transaction = self.cache.pipeline()
                 for edge in edge_list:
                     edge_key = (EDGE_KEY_FORMAT

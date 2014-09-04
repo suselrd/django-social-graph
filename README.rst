@@ -10,8 +10,14 @@ Includes the implementation of django-redis-cache (by Sean Bleier).
 Changelog
 =========
 
+0.1.7
+-----
+Full site aware implementation (Note: A different cache instance SHOULD be defined for each Site)
+
+
 0.1.6
 -----
+More specific signal sender:
 * object_visited sender is the model class
 
 

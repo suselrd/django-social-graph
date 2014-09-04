@@ -1,6 +1,6 @@
 # coding=utf-8
-from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.sites.models import Site
 from django.db.models import F
 from social_graph.api import Graph
 from social_graph.models import EdgeTypeAssociation, Edge, EdgeCount, EdgeType
@@ -14,15 +14,15 @@ class SymmetricEdgeManager(object):
             try:
                 symmetric_type = EdgeTypeAssociation.objects.get(direct=instance.type).inverse
                 try:
-                    Edge.objects.get(fromNode_pk=instance.toNode.pk,
+                    Edge.on_site.get(fromNode_pk=instance.toNode.pk,
                                      fromNode_type=ContentType.objects.get_for_model(instance.toNode),
                                      toNode_pk=instance.fromNode.pk,
                                      toNode_type=ContentType.objects.get_for_model(instance.fromNode),
                                      type=symmetric_type)
-                except ObjectDoesNotExist:
+                except Edge.DoesNotExist:
                     graph = Graph()
                     graph.edge_add(instance.toNode, instance.fromNode, symmetric_type, instance.attributes, auto=True)
-            except ObjectDoesNotExist:
+            except EdgeTypeAssociation.DoesNotExist:
                 pass
 
     @staticmethod
@@ -31,7 +31,7 @@ class SymmetricEdgeManager(object):
             symmetric_type = EdgeTypeAssociation.objects.get(direct=instance.type).inverse
             graph = Graph()
             graph.edge_delete(instance.toNode, instance.fromNode, symmetric_type)
-        except ObjectDoesNotExist:
+        except EdgeTypeAssociation.DoesNotExist:
             pass
 
 
@@ -41,7 +41,7 @@ class SymmetricEdgeTypeAssociationManager(object):
         try:
             EdgeTypeAssociation.objects.get(direct=instance.inverse,
                                             inverse=instance.direct)
-        except ObjectDoesNotExist:
+        except EdgeTypeAssociation.DoesNotExist:
             symmetric = EdgeTypeAssociation(direct=instance.inverse,
                                             inverse=instance.direct)
             symmetric.save()
@@ -52,7 +52,7 @@ class SymmetricEdgeTypeAssociationManager(object):
             symmetric = EdgeTypeAssociation.objects.get(direct=instance.inverse,
                                                         inverse=instance.direct)
             symmetric.delete()
-        except ObjectDoesNotExist:
+        except EdgeTypeAssociation.DoesNotExist:
             pass
 
 
@@ -63,6 +63,7 @@ class EdgeCounter(object):
             fromNode_pk=instance.fromNode.pk,
             fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
             type=instance.type,
+            site=Site.objects.get_current(),
             defaults={
                 'count': 1
             }
@@ -72,9 +73,15 @@ class EdgeCounter(object):
             counter.save()
     @staticmethod
     def decrease_count(sender, instance, **kwargs):
-        counter, is_new = EdgeCount.objects.get_or_create(fromNode_pk=instance.fromNode.pk,
-                                                          fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
-                                                          type=instance.type)
+        counter, is_new = EdgeCount.objects.get_or_create(
+            fromNode_pk=instance.fromNode.pk,
+            fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
+            type=instance.type,
+            site=Site.objects.get_current(),
+            defaults={
+                'count': 0
+            }
+        )
         if not is_new:  # is_new case should never happen!!
             counter.count = F('count') - 1
             counter.save()

@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
+from django.contrib.sites.managers import CurrentSiteManager
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from social_graph.fields import JSONField
@@ -174,6 +175,9 @@ class Edge(models.Model):
     site = models.ForeignKey(Site, default=settings.SITE_ID, verbose_name=_('site'), related_name='edges')
     auto = models.BooleanField(_('auto created'), default=False)
 
+    objects = models.Manager()
+    on_site = CurrentSiteManager()
+
     class Meta:
         ordering = ['-time']
 
@@ -197,6 +201,11 @@ class EdgeCount(models.Model):
     # count
     count = models.IntegerField(_('count'), default=0)
 
+    site = models.ForeignKey(Site, default=settings.SITE_ID, verbose_name=_('site'), related_name='edge_counters')
+
+    objects = models.Manager()
+    on_site = CurrentSiteManager()
+
     def __unicode__(self):
         return (_('%(from)s has %(count)d %(type)s edge(s)')
                 % {
@@ -204,3 +213,6 @@ class EdgeCount(models.Model):
             'count': self.count,
             'type': self.type
         })
+
+    class Meta:
+        unique_together = ['fromNode_type', 'fromNode_pk', 'type', 'site']
