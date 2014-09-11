@@ -1,2 +1,3 @@
 include LICENSE AUTHORS.rst README.rst
+recursive-include social_graph/migrations *
 

@@ -7,6 +7,8 @@ setup(
     author_email = "suselrd@gmail.com",
     version = "0.1.7",
     packages = ["social_graph", 'redis_cache'],
+    include_package_data=True,
+    zip_safe=False,
     description = "Social Graph for Django + Redis",
     install_requires=['redis>=2.4.5', 'django>=1.6.1', ],
     classifiers = [

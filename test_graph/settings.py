@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sites',
+    'south',
     'social_graph',
     'test_graph',
 ]
