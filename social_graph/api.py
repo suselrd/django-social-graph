@@ -176,34 +176,37 @@ class Graph(object):
     def edge_delete(self, from_node, to_node, etype):
         ctype1 = ContentType.objects.get_for_model(from_node)
         ctype2 = ContentType.objects.get_for_model(to_node)
-        edge = Edge.on_site.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
+        try:
+            edge = Edge.on_site.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
                                 toNode_type=ctype2, type=etype)
-        edge.delete()
-        # delete from cache: find all cached values that this edge impacts on, and update them
-        edge_key = (EDGE_KEY_FORMAT
-                    % {'ctype1': ctype1.pk,
-                       'pk1': from_node.pk,
-                       'etype': etype.pk,
-                       'ctype2': ctype2.pk,
-                       'pk2': to_node.pk})
-        count_key = (COUNT_KEY_FORMAT
-                     % {'ctype': ctype1.pk,
-                        'pk': from_node.pk,
-                        'etype': etype.pk})
-        list_key = (EDGE_LIST_KEY_FORMAT
-                    % {'ctype': ctype1.pk,
-                       'pk': from_node.pk,
-                       'etype': etype.pk})
-        transaction = self.cache.pipeline()
-        transaction.delete(edge_key)
-        if count_key in self.cache:
-            transaction.decr(count_key)
-        if list_key in self.cache:
-            edge_rep = (edge.toNode, edge.attributes, edge.time)
-            transaction.rem_from_sorted_set(list_key, edge_rep)
-        transaction.execute()
-        signals.edge_deleted.send(sender=etype, instance=edge)
-        return True
+            edge.delete()
+            # delete from cache: find all cached values that this edge impacts on, and update them
+            edge_key = (EDGE_KEY_FORMAT
+                        % {'ctype1': ctype1.pk,
+                           'pk1': from_node.pk,
+                           'etype': etype.pk,
+                           'ctype2': ctype2.pk,
+                           'pk2': to_node.pk})
+            count_key = (COUNT_KEY_FORMAT
+                         % {'ctype': ctype1.pk,
+                            'pk': from_node.pk,
+                            'etype': etype.pk})
+            list_key = (EDGE_LIST_KEY_FORMAT
+                        % {'ctype': ctype1.pk,
+                           'pk': from_node.pk,
+                           'etype': etype.pk})
+            transaction = self.cache.pipeline()
+            transaction.delete(edge_key)
+            if count_key in self.cache:
+                transaction.decr(count_key)
+            if list_key in self.cache:
+                edge_rep = (edge.toNode, edge.attributes, edge.time)
+                transaction.rem_from_sorted_set(list_key, edge_rep)
+            transaction.execute()
+            signals.edge_deleted.send(sender=etype, instance=edge)
+            return True
+        except Edge.DoesNotExist:
+            return False
 
     @atomic
     def _edges_delete(self, from_node, etype):
