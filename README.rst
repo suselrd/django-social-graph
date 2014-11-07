@@ -10,6 +10,11 @@ Includes the implementation of django-redis-cache (by Sean Bleier).
 Changelog
 =========
 
+0.1.8
+-----
+Fixes in multi-site support. CHANGED API METHODS SIGNATURES!!!!
+
+
 0.1.7
 -----
 Full site aware implementation (Note: A different cache instance SHOULD be defined for each Site)

@@ -5,7 +5,7 @@ setup(
     #url = "http://github.com/suselrd/django-social-graph/",
     author = "Susel Ruiz Duran",
     author_email = "suselrd@gmail.com",
-    version = "0.1.7",
+    version = "0.1.8",
     packages = ["social_graph", 'redis_cache'],
     include_package_data=True,
     zip_safe=False,
