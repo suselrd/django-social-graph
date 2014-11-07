@@ -1,5 +1,6 @@
 # coding=utf-8
 from django import forms
+from django.contrib.sites.models import Site
 from django.forms.util import ErrorList
 from . import Graph
 
@@ -9,6 +10,7 @@ class BaseEdgeForm(forms.Form):
     edge_target = 'toNode'
     edge_type = 'type'
     edge_attributes = ['attribute', ]
+    edge_site = 'site'
     update = False
 
     _graph = Graph()
@@ -24,6 +26,11 @@ class BaseEdgeForm(forms.Form):
         if not self.cleaned_data[self.edge_type]:
             raise Exception("Missing '%s' in cleaned_data dict" % self.edge_type)
         return self.cleaned_data[self.edge_type]
+
+    def get_site(self):
+        if not self.cleaned_data[self.edge_site]:
+            raise Exception("Missing '%s' in cleaned_data dict" % self.edge_site)
+        return self.cleaned_data[self.edge_site]
 
     def get_origin(self):
         if not self.cleaned_data[self.edge_origin]:
@@ -52,6 +59,7 @@ class BaseEdgeForm(forms.Form):
         return suitable_method(self.get_origin(),
                                self.get_target(),
                                self.get_etype(),
+                               self.get_site(),
                                attributes=self.get_attributes())
 
 

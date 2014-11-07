@@ -1,10 +1,11 @@
 # coding=utf-8
-from django.conf import settings
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.contrib.sites.managers import CurrentSiteManager
 from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from social_graph.fields import JSONField
 
@@ -172,7 +173,7 @@ class Edge(models.Model):
 
     # edge metadata
     time = models.DateTimeField(_('time'), auto_now_add=True)
-    site = models.ForeignKey(Site, default=settings.SITE_ID, verbose_name=_('site'), related_name='edges')
+    site = models.ForeignKey(Site, verbose_name=_('site'), related_name='edges')
     auto = models.BooleanField(_('auto created'), default=False)
 
     objects = models.Manager()
@@ -188,6 +189,12 @@ class Edge(models.Model):
                    'to': self.toNode})
 
 
+@receiver(pre_save, sender=Edge, dispatch_uid='pre_save_edge')
+def pre_save_handler(instance, **kwargs):
+    if not instance.site_id:
+        instance.site = getattr(instance.fromNode, 'site', getattr(instance.toNode, 'site', Site.objects.get_current()))
+
+
 class EdgeCount(models.Model):
     # fromNode field
     fromNode_type = models.ForeignKey(ContentType,
@@ -201,7 +208,7 @@ class EdgeCount(models.Model):
     # count
     count = models.IntegerField(_('count'), default=0)
 
-    site = models.ForeignKey(Site, default=settings.SITE_ID, verbose_name=_('site'), related_name='edge_counters')
+    site = models.ForeignKey(Site, verbose_name=_('site'), related_name='edge_counters')
 
     objects = models.Manager()
     on_site = CurrentSiteManager()
@@ -216,3 +223,8 @@ class EdgeCount(models.Model):
 
     class Meta:
         unique_together = ['fromNode_type', 'fromNode_pk', 'type', 'site']
+
+@receiver(pre_save, sender=EdgeCount, dispatch_uid='pre_save_edge_count')
+def pre_save_count_handler(instance, **kwargs):
+    if not instance.site_id:
+        instance.site = getattr(instance.fromNode, 'site', Site.objects.get_current())

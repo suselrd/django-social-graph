@@ -1,6 +1,5 @@
 # coding=utf-8
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.sites.models import Site
 from django.db.models import F
 from social_graph.api import Graph
 from social_graph.models import EdgeTypeAssociation, Edge, EdgeCount, EdgeType
@@ -14,14 +13,15 @@ class SymmetricEdgeManager(object):
             try:
                 symmetric_type = EdgeTypeAssociation.objects.get(direct=instance.type).inverse
                 try:
-                    Edge.on_site.get(fromNode_pk=instance.toNode.pk,
+                    Edge.objects.get(fromNode_pk=instance.toNode.pk,
                                      fromNode_type=ContentType.objects.get_for_model(instance.toNode),
                                      toNode_pk=instance.fromNode.pk,
                                      toNode_type=ContentType.objects.get_for_model(instance.fromNode),
-                                     type=symmetric_type)
+                                     type=symmetric_type,
+                                     site=instance.site)
                 except Edge.DoesNotExist:
                     graph = Graph()
-                    graph.edge_add(instance.toNode, instance.fromNode, symmetric_type, instance.attributes, auto=True)
+                    graph.edge_add(instance.toNode, instance.fromNode, symmetric_type, instance.site, instance.attributes, auto=True)
             except EdgeTypeAssociation.DoesNotExist:
                 pass
 
@@ -30,7 +30,7 @@ class SymmetricEdgeManager(object):
         try:
             symmetric_type = EdgeTypeAssociation.objects.get(direct=instance.type).inverse
             graph = Graph()
-            graph.edge_delete(instance.toNode, instance.fromNode, symmetric_type)
+            graph.edge_delete(instance.toNode, instance.fromNode, symmetric_type, instance.site)
         except EdgeTypeAssociation.DoesNotExist:
             pass
 
@@ -63,7 +63,7 @@ class EdgeCounter(object):
             fromNode_pk=instance.fromNode.pk,
             fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
             type=instance.type,
-            site=Site.objects.get_current(),
+            site=instance.site,
             defaults={
                 'count': 1
             }
@@ -77,7 +77,7 @@ class EdgeCounter(object):
             fromNode_pk=instance.fromNode.pk,
             fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
             type=instance.type,
-            site=Site.objects.get_current(),
+            site=instance.site,
             defaults={
                 'count': 0
             }
