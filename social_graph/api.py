@@ -276,7 +276,7 @@ class Graph(object):
 
     # Edges Reading
 
-    def edge_count(self, from_node, etype, site):
+    def edge_count(self, from_node, etype, site=None):
 
         """
         Returns the number of edges of type etype that originate at from_node in site
@@ -285,6 +285,9 @@ class Graph(object):
         :param site:
         :return: int
         """
+
+        if site is None:
+            site = Site.objects.get_current()
         ctype = ContentType.objects.get_for_model(from_node)
         key = COUNT_KEY_FORMAT % {
             'ctype': ctype.pk,
@@ -301,7 +304,7 @@ class Graph(object):
             self.cache.set(key, int(count))
         return count
 
-    def edge_range(self, from_node, etype, site, pos, limit):
+    def edge_range(self, from_node, etype, pos, limit, site=None):
 
         """
         Returns elements of the (from_node, etype, site) edge list with index i ∈ [pos, pos + limit).
@@ -311,6 +314,9 @@ class Graph(object):
         :param pos:
         :param limit:
         """
+
+        if site is None:
+            site = Site.objects.get_current()
         ctype = ContentType.objects.get_for_model(from_node)
         # check if the count is already cached
         count_key = (COUNT_KEY_FORMAT
@@ -348,7 +354,7 @@ class Graph(object):
         else:  # if count is zero, the list is empty
             return []
 
-    def edges_get(self, from_node, etype, to_node_set, site):
+    def edges_get(self, from_node, etype, to_node_set, site=None):
 
         """
         Returns all of the edges (from_node, etype, to_node) in site, and their time and data, where to_node ∈ to_node_set
@@ -358,6 +364,9 @@ class Graph(object):
         :param to_node_set:
         :param site:
         """
+
+        if site is None:
+            site = Site.objects.get_current()
         ctype = ContentType.objects.get_for_model(from_node)
         result = []
         to_look = []
@@ -402,7 +411,7 @@ class Graph(object):
             transaction.execute()
         return result
 
-    def edge_time_range(self, from_node, etype, site, high, low, limit):
+    def edge_time_range(self, from_node, etype, high, low, limit, site=None):
         """
         Returns elements from the (from_node, etype) edge list in site, starting with the first edge where time ≤ high,
         returning only edges where time ≥ low
