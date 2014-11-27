@@ -234,6 +234,16 @@ class Graph(object):
             return True
         except Edge.DoesNotExist:
             return False
+        except Edge.MultipleObjectsReturned:
+            edges = Edge.objects.filter(
+                fromNode_pk=from_node.pk,
+                fromNode_type=ctype1,
+                toNode_pk=to_node.pk,
+                toNode_type=ctype2,
+                type=etype,
+                site=site
+            )
+            edges.delete()
 
     @atomic
     def _edges_delete(self, from_node, etype):

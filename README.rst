@@ -10,6 +10,11 @@ Includes the implementation of django-redis-cache (by Sean Bleier).
 Changelog
 =========
 
+0.1.9
+-----
+Fixes in delete_edge behaviour (handling more corner case's exceptions)
+
+
 0.1.8
 -----
 Fixes in multi-site support. CHANGED API METHODS SIGNATURES!!!!

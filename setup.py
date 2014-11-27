@@ -2,10 +2,10 @@ from setuptools import setup
 
 setup(
     name = "django-social-graph",
-    #url = "http://github.com/suselrd/django-social-graph/",
+    url = "http://github.com/suselrd/django-social-graph/",
     author = "Susel Ruiz Duran",
     author_email = "suselrd@gmail.com",
-    version = "0.1.8",
+    version = "0.1.9",
     packages = ["social_graph", 'redis_cache'],
     include_package_data=True,
     zip_safe=False,
