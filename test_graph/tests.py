@@ -51,7 +51,7 @@ class SocialGraphTest(TestCase):
         self.assertEqual(EdgeTypeAssociation.objects.count(), 0)
 
     def test_edge_add(self):
-        self.graph.edge_add(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
         # check the edge list
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 1)
         self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
@@ -66,7 +66,7 @@ class SocialGraphTest(TestCase):
         self.assertEqual(edges[0][TO_NODE].username, self.users[0].username)
 
         # add another edge
-        self.graph.edge_add(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 2)
         self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
                                                  fromNode_type=ContentType.objects.get_for_model(self.users[0]),
@@ -77,7 +77,7 @@ class SocialGraphTest(TestCase):
     def test_edge_add_atomicity(self):
         edge_created.connect(raise_exception, Graph)
         try:
-            self.graph.edge_add(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+            self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
         except MyException:
             # check the edge list
             self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 0)
@@ -93,12 +93,12 @@ class SocialGraphTest(TestCase):
         edge_created.disconnect(raise_exception, Graph)
 
     def test_edge_delete(self):
-        self.graph.edge_add(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
-        self.graph.edge_add(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
-        self.graph.edge_add(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
         edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)
         self.assertEqual(len(edges), 3)
-        self.graph.edge_delete(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+        self.graph.no_edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
         edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)
         self.assertEqual(len(edges), 2)
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 2)
@@ -112,8 +112,8 @@ class SocialGraphTest(TestCase):
     def test_edge_delete_atomicity(self):
         edge_deleted.connect(raise_exception, Graph)
         try:
-            self.graph.edge_add(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
-            self.graph.edge_delete(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+            self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+            self.graph.no_edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
         except MyException:
             self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 1)
             self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
@@ -123,11 +123,11 @@ class SocialGraphTest(TestCase):
         edge_deleted.disconnect(raise_exception, Graph)
 
     def test_edge_range_order(self):
-        self.graph.edge_add(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
         sleep(1)
-        self.graph.edge_add(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
         sleep(1)
-        self.graph.edge_add(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
         edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)
         self.assertEqual(edges[0][TO_NODE].name, self.objects['limited'].name)
         self.assertEqual(edges[1][TO_NODE].name, self.objects['admin'].name)
@@ -136,13 +136,13 @@ class SocialGraphTest(TestCase):
     def test_edge_time_range(self):
         t0 = time()
         sleep(1)
-        self.graph.edge_add(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
         t1 = time()
         sleep(1)
-        self.graph.edge_add(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
         t2 = time()
         sleep(1)
-        self.graph.edge_add(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
         t3 = time()
 
         edges = self.graph.edge_time_range(self.users[0], self.relationships['like'], t0, t2, 10, self.site)
@@ -165,7 +165,7 @@ class SocialGraphTest(TestCase):
         self.assertEqual(edges[2][TO_NODE].name, self.objects['advanced'].name)
 
     def test_edge_change(self):
-        self.graph.edge_add(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
 
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 1)
         self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
@@ -175,7 +175,7 @@ class SocialGraphTest(TestCase):
         self.assertEqual(
             self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)[0][ATTRIBUTES], {})
 
-        self.graph.edge_change(self.users[0], self.objects['advanced'], self.relationships['like'], self.site, {"quantity": 3})
+        self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site, {"quantity": 3})
 
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site),
                          len(self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)))
@@ -198,8 +198,8 @@ class SocialGraphTest(TestCase):
     def test_edge_change_atomicity(self):
         edge_updated.connect(raise_exception, Graph)
         try:
-            self.graph.edge_add(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
-            self.graph.edge_change(self.users[0], self.objects['advanced'], self.relationships['like'], self.site, {"quantity": 3})
+            self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+            self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site, {"quantity": 3})
         except MyException:
             self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 1)
             self.assertEqual(len(self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)), 1)
@@ -216,9 +216,9 @@ class SocialGraphTest(TestCase):
         edge_updated.disconnect(raise_exception, Graph)
 
     def test_edges_get(self):
-        self.graph.edge_add(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
-        self.graph.edge_add(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
-        self.graph.edge_add(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
+        self.graph.edge(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
 
         edges = self.graph.edges_get(self.users[0], self.relationships['like'],
                                      [self.objects['advanced'], self.objects['limited'], self.objects['dummy']], self.site)
@@ -332,7 +332,6 @@ class SocialGraphTest(TestCase):
             edge_origin = 'user'
             edge_target = 'group'
             edge_attributes = ['rating', ]
-            update = False
 
             user = forms.ModelChoiceField(User.objects.all())
             group = forms.ModelChoiceField(Group.objects.all())
@@ -375,7 +374,6 @@ class SocialGraphTest(TestCase):
             edge_origin = 'user'
             edge_target = 'group'
             edge_attributes = ['rating', 'favorite']
-            update = False
 
             user = forms.ModelChoiceField(User.objects.all())
             group = forms.ModelChoiceField(Group.objects.all())

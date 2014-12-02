@@ -10,6 +10,13 @@ Includes the implementation of django-redis-cache (by Sean Bleier).
 Changelog
 =========
 
+0.2.0
+-----
+Allows only one edge per node pair, edge type and site.
+Deprecated old methods: edge_add(), edge_change(), and edge_delete(); introduced methods edge() and no_edge()
+to substitute them. (Is not recommendable to mix old deprecated method usage with new method usage, can lead to inconsistent data!)
+New edge_get() method to retrieve only one edge (if exists). (Is only safe to use when edge creation is handled by edge() method, not by deprecated edge_add/edge_change)
+
 0.1.9
 -----
 Fixes in delete_edge behaviour (handling more corner case's exceptions)

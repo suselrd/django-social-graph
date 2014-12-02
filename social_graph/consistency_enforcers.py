@@ -5,6 +5,9 @@ from social_graph.api import Graph
 from social_graph.models import EdgeTypeAssociation, Edge, EdgeCount, EdgeType
 
 
+graph = Graph()
+
+
 class SymmetricEdgeManager(object):
 
     @staticmethod
@@ -20,8 +23,7 @@ class SymmetricEdgeManager(object):
                                      type=symmetric_type,
                                      site=instance.site)
                 except Edge.DoesNotExist:
-                    graph = Graph()
-                    graph.edge_add(instance.toNode, instance.fromNode, symmetric_type, instance.site, instance.attributes, auto=True)
+                    graph._add(instance.toNode, instance.fromNode, symmetric_type, instance.site, instance.attributes, auto=True)
             except EdgeTypeAssociation.DoesNotExist:
                 pass
 
@@ -29,8 +31,7 @@ class SymmetricEdgeManager(object):
     def delete_symmetric_edge(sender, instance, **kwargs):
         try:
             symmetric_type = EdgeTypeAssociation.objects.get(direct=instance.type).inverse
-            graph = Graph()
-            graph.edge_delete(instance.toNode, instance.fromNode, symmetric_type, instance.site)
+            graph._delete(instance.toNode, instance.fromNode, symmetric_type, instance.site)
         except EdgeTypeAssociation.DoesNotExist:
             pass
 
@@ -92,7 +93,6 @@ class EdgeCleaner(object):
     def clean_edges(sender, instance, **kwargs):
         if sender in (Edge, EdgeType, EdgeTypeAssociation, EdgeCount):
             return
-        graph = Graph()
         types = EdgeType.objects.all()
         for etype in types:
-            graph._edges_delete(instance, etype)
+            graph._delete_all(instance, etype)

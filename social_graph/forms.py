@@ -1,6 +1,5 @@
 # coding=utf-8
 from django import forms
-from django.contrib.sites.models import Site
 from django.forms.util import ErrorList
 from . import Graph
 
@@ -11,7 +10,6 @@ class BaseEdgeForm(forms.Form):
     edge_type = 'type'
     edge_attributes = ['attribute', ]
     edge_site = 'site'
-    update = False
 
     _graph = Graph()
 
@@ -51,12 +49,7 @@ class BaseEdgeForm(forms.Form):
         return attributes
 
     def save(self):
-        if self.update:
-            suitable_method = self._graph.edge_change
-        else:
-            suitable_method = self._graph.edge_add
-
-        return suitable_method(self.get_origin(),
+        return self._graph.edge(self.get_origin(),
                                self.get_target(),
                                self.get_etype(),
                                self.get_site(),
