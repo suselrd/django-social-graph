@@ -6,7 +6,7 @@ setup(
     author="Susel Ruiz Duran",
     author_email="suselrd@gmail.com",
     version="0.3.0",
-    packages=["social_graph", 'redis_cache'],
+    packages=["social_graph"],
     include_package_data=True,
     zip_safe=False,
     description="Social Graph for Django + Redis",
