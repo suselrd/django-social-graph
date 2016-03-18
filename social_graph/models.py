@@ -61,7 +61,7 @@ class EdgeType(models.Model):
 
     objects = EdgeTypeManager()
 
-    class Meta:
+    class Meta(object):
         ordering = ['name']
         verbose_name = _('Edge type')
         verbose_name_plural = _('Edge types')
@@ -179,7 +179,8 @@ class Edge(models.Model):
     objects = models.Manager()
     on_site = CurrentSiteManager()
 
-    class Meta:
+    class Meta(object):
+        unique_together = ['fromNode_type', 'fromNode_pk', 'toNode_type', 'toNode_pk', 'type', 'site']
         ordering = ['-time']
 
     def __unicode__(self):
@@ -221,7 +222,7 @@ class EdgeCount(models.Model):
             'type': self.type
         })
 
-    class Meta:
+    class Meta(object):
         unique_together = ['fromNode_type', 'fromNode_pk', 'type', 'site']
 
 

@@ -8,6 +8,11 @@ Social graph for Django>=1.6.1
 Changelog
 =========
 
+0.3.1
+-----
+Added unique constraint to Edge model.
+(Until now, this constraint have been enforced by api logic, but had some issues when cache contains residual items)
+
 0.3.0
 -----
 Removed deprecated methods: edge_add(), edge_change(), and edge_delete(). --> BACKWARDS INCOMPATIBILITY
