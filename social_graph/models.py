@@ -56,18 +56,18 @@ class EdgeTypeManager(models.Manager):
 
 
 class EdgeType(models.Model):
-    name = models.CharField(_('name'), max_length=100, unique=True)
-    read_as = models.CharField(_('read as'), max_length=100)
+    name = models.CharField(_(u'name'), max_length=100, unique=True)
+    read_as = models.CharField(_(u'read as'), max_length=100)
 
     objects = EdgeTypeManager()
 
     class Meta(object):
         ordering = ['name']
-        verbose_name = _('Edge type')
-        verbose_name_plural = _('Edge types')
+        verbose_name = _(u'Edge type')
+        verbose_name_plural = _(u'Edge types')
 
     def __unicode__(self):
-        return self.name
+        return u'%s' % self.name
 
     def setting_name(self):
         return self.name.upper()
@@ -143,9 +143,10 @@ class EdgeTypeAssociation(models.Model):
     objects = EdgeTypeAssociationManager()
 
     def __unicode__(self):
-        return ("%(direct)s <-> %(inverse)s"
-                % {'direct': self.direct.name,
-                   'inverse': self.inverse.name})
+        return u"%(direct)s <-> %(inverse)s" % {
+            'direct': self.direct,
+            'inverse': self.inverse
+        }
 
     def delete(self, using=None):
         self.__class__.objects.rem_from_cache(using, self)
@@ -155,26 +156,26 @@ class EdgeTypeAssociation(models.Model):
 class Edge(models.Model):
     # fromNode field
     fromNode_type = models.ForeignKey(ContentType,
-                                      verbose_name=_('from node type'),
+                                      verbose_name=_(u'from node type'),
                                       related_name="from_node_type_set_for_%(class)s")
-    fromNode_pk = models.TextField(_('fromNode ID'))
+    fromNode_pk = models.TextField(_(u'fromNode ID'))
     fromNode = generic.GenericForeignKey(ct_field="fromNode_type", fk_field="fromNode_pk")
 
     # toNode field
     toNode_type = models.ForeignKey(ContentType,
-                                    verbose_name=_('to node type'),
+                                    verbose_name=_(u'to node type'),
                                     related_name="to_node_type_set_for_%(class)s")
-    toNode_pk = models.TextField(_('toNode ID'))
+    toNode_pk = models.TextField(_(u'toNode ID'))
     toNode = generic.GenericForeignKey(ct_field="toNode_type", fk_field="toNode_pk")
 
     # edge attributes
     type = models.ForeignKey(EdgeType)
-    attributes = JSONField(_('attributes'), default='{}')
+    attributes = JSONField(_(u'attributes'), default='{}')
 
     # edge metadata
-    time = models.DateTimeField(_('time'), auto_now_add=True)
-    site = models.ForeignKey(Site, verbose_name=_('site'), related_name='edges')
-    auto = models.BooleanField(_('auto created'), default=False)
+    time = models.DateTimeField(_(u'time'), auto_now_add=True)
+    site = models.ForeignKey(Site, verbose_name=_(u'site'), related_name='edges')
+    auto = models.BooleanField(_(u'auto created'), default=False)
 
     objects = models.Manager()
     on_site = CurrentSiteManager()
@@ -184,10 +185,13 @@ class Edge(models.Model):
         ordering = ['-time']
 
     def __unicode__(self):
-        return (_('%(from)s %(verb)s %(to)s')
-                % {'from': self.fromNode,
-                   'verb': self.type.read_as,
-                   'to': self.toNode})
+        return (
+            _(u'%(from)s %(verb)s %(to)s') % {
+                'from': self.fromNode if self.fromNode else '',
+                'verb': self.type.read_as,
+                'to': self.toNode if self.toNode else ''
+            }
+        )
 
 
 @receiver(models.signals.pre_save, sender=Edge, dispatch_uid='pre_save_edge')
@@ -199,28 +203,29 @@ def pre_save_handler(instance, **kwargs):
 class EdgeCount(models.Model):
     # fromNode field
     fromNode_type = models.ForeignKey(ContentType,
-                                      verbose_name=_('from node type'))
-    fromNode_pk = models.TextField(_('fromNode ID'))
+                                      verbose_name=_(u'from node type'))
+    fromNode_pk = models.TextField(_(u'fromNode ID'))
     fromNode = generic.GenericForeignKey(ct_field="fromNode_type", fk_field="fromNode_pk")
 
     # edge attributes
     type = models.ForeignKey(EdgeType)
 
     # count
-    count = models.IntegerField(_('count'), default=0)
+    count = models.IntegerField(_(u'count'), default=0)
 
-    site = models.ForeignKey(Site, verbose_name=_('site'), related_name='edge_counters')
+    site = models.ForeignKey(Site, verbose_name=_(u'site'), related_name='edge_counters')
 
     objects = models.Manager()
     on_site = CurrentSiteManager()
 
     def __unicode__(self):
-        return (_('%(from)s has %(count)d %(type)s edge(s)')
-                % {
-            'from': self.fromNode,
-            'count': self.count,
-            'type': self.type
-        })
+        return (
+            _(u'%(from)s has %(count)d %(type)s edge(s)') % {
+                'from': self.fromNode if self.fromNode else '',
+                'count': self.count,
+                'type': self.type
+            }
+        )
 
     class Meta(object):
         unique_together = ['fromNode_type', 'fromNode_pk', 'type', 'site']

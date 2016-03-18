@@ -8,6 +8,11 @@ Social graph for Django>=1.6.1
 Changelog
 =========
 
+0.3.2
+-----
+Added spanish translations
+Included management commands to be packaged along with the application
+
 0.3.1
 -----
 Added unique constraint to Edge model.

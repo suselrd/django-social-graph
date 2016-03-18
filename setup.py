@@ -1,12 +1,12 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="django-social-graph",
     url="http://github.com/suselrd/django-social-graph/",
     author="Susel Ruiz Duran",
     author_email="suselrd@gmail.com",
-    version="0.3.1",
-    packages=["social_graph"],
+    version="0.3.2",
+    packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
     description="Social Graph for Django + Redis",
