@@ -7,7 +7,9 @@ from django.test import TestCase
 from social_graph.api import Graph, TO_NODE, ATTRIBUTES
 from social_graph.forms import BaseEdgeForm, SpecificTypeEdgeForm
 from social_graph.models import EdgeType, EdgeTypeAssociation, Edge
-from social_graph.signals import edge_created, edge_deleted, object_created, object_deleted, edge_updated, object_visited
+from social_graph.signals import (
+    edge_created, edge_deleted, object_created, object_deleted, edge_updated, object_visited
+)
 from test_graph.models import A, B
 
 
@@ -15,7 +17,7 @@ class MyException(Exception):
     pass
 
 
-#noinspection PyUnusedLocal
+# noinspection PyUnusedLocal
 def raise_exception(**kwargs):
     raise MyException()
 
@@ -51,27 +53,45 @@ class SocialGraphTest(TestCase):
         self.assertEqual(EdgeTypeAssociation.objects.count(), 0)
 
     def test_edge_add(self):
+        # before anything gets saved
+        edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)
+        self.assertEqual(len(edges), 0)
+        self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 0)
+
+        inverse_edges = self.graph.edge_range(
+            self.objects['advanced'], self.relationships['liked_by'], 0, 10, self.site
+        )
+        self.assertEqual(len(inverse_edges), 0)
+        self.assertEqual(self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by'], self.site), 0)
+
+        # first edge gets saved
+
         self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
-        # check the edge list
+
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 1)
-        self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
-                                                 fromNode_type=ContentType.objects.get_for_model(self.users[0]),
-                                                 type=self.relationships['like'],
-                                                 site=self.site)), 1)
+        self.assertEqual(len(Edge.objects.filter(
+            fromNode_pk=self.users[0].pk,
+            fromNode_type=ContentType.objects.get_for_model(self.users[0]),
+            type=self.relationships['like'],
+            site=self.site
+        )), 1)
         edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)
         self.assertEqual(edges[0][TO_NODE].name, self.objects['advanced'].name)
-        # check the inverse edge list
+
         self.assertEqual(self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by'], self.site), 1)
         edges = self.graph.edge_range(self.objects['advanced'], self.relationships['liked_by'], 0, 10, self.site)
         self.assertEqual(edges[0][TO_NODE].username, self.users[0].username)
 
-        # add another edge
+        # another edge gets saved
         self.graph.edge(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
+
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 2)
-        self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
-                                                 fromNode_type=ContentType.objects.get_for_model(self.users[0]),
-                                                 type=self.relationships['like'],
-                                                 site=self.site)), 2)
+        self.assertEqual(len(Edge.objects.filter(
+            fromNode_pk=self.users[0].pk,
+            fromNode_type=ContentType.objects.get_for_model(self.users[0]),
+            type=self.relationships['like'],
+            site=self.site
+        )), 2)
         self.assertEqual(self.graph.edge_count(self.objects['admin'], self.relationships['liked_by'], self.site), 1)
 
     def test_edge_add_atomicity(self):
@@ -81,33 +101,75 @@ class SocialGraphTest(TestCase):
         except MyException:
             # check the edge list
             self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 0)
-            self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
-                                                     fromNode_type=ContentType.objects.get_for_model(self.users[0]),
-                                                     type=self.relationships['like'],
-                                                     site=self.site)), 0)
+            self.assertEqual(len(Edge.objects.filter(
+                fromNode_pk=self.users[0].pk,
+                fromNode_type=ContentType.objects.get_for_model(self.users[0]),
+                type=self.relationships['like'],
+                site=self.site
+            )), 0)
             self.assertEqual(self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site), [])
+
             # check the inverse edge list
-            self.assertEqual(self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by'], self.site), 0)
             self.assertEqual(
-                self.graph.edge_range(self.objects['advanced'], self.relationships['liked_by'], 0, 10, self.site), [])
+                self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by'], self.site), 0
+            )
+            self.assertEqual(
+                self.graph.edge_range(self.objects['advanced'], self.relationships['liked_by'], 0, 10, self.site), []
+            )
         edge_created.disconnect(raise_exception, Graph)
 
     def test_edge_delete(self):
+        # before anything gets saved
+        edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)
+        self.assertEqual(len(edges), 0)
+        self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 0)
+        inverse_edges = self.graph.edge_range(
+            self.objects['advanced'], self.relationships['liked_by'], 0, 10, self.site
+        )
+        self.assertEqual(len(inverse_edges), 0)
+        self.assertEqual(self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by'], self.site), 0)
+
+        # 3 edges gets saved
+
         self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
         self.graph.edge(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
         self.graph.edge(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
+
         edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)
         self.assertEqual(len(edges), 3)
+
+        inverse_edges = self.graph.edge_range(
+            self.objects['advanced'], self.relationships['liked_by'], 0, 10, self.site
+        )
+        self.assertEqual(len(inverse_edges), 1)
+
+        # one edge gets deleted
+
         self.graph.no_edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
+
         edges = self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)
         self.assertEqual(len(edges), 2)
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 2)
-        self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
-                                                 fromNode_type=ContentType.objects.get_for_model(self.users[0]),
-                                                 type=self.relationships['like'],
-                                                 site=self.site)), 2)
+        self.assertEqual(len(Edge.objects.filter(
+            fromNode_pk=self.users[0].pk,
+            fromNode_type=ContentType.objects.get_for_model(self.users[0]),
+            type=self.relationships['like'],
+            site=self.site
+        )), 2)
         self.assertEqual(edges[0][TO_NODE].name, self.objects['limited'].name)
         self.assertEqual(edges[1][TO_NODE].name, self.objects['admin'].name)
+
+        inverse_edges = self.graph.edge_range(
+            self.objects['advanced'], self.relationships['liked_by'], 0, 10, self.site
+        )
+        self.assertEqual(len(inverse_edges), 0)
+        self.assertEqual(self.graph.edge_count(self.objects['advanced'], self.relationships['liked_by'], self.site), 0)
+        self.assertEqual(len(Edge.objects.filter(
+            fromNode_pk=self.objects['advanced'].pk,
+            fromNode_type=ContentType.objects.get_for_model(self.objects['advanced']),
+            type=self.relationships['liked_by'],
+            site=self.site
+        )), 0)
 
     def test_edge_delete_atomicity(self):
         edge_deleted.connect(raise_exception, Graph)
@@ -116,10 +178,12 @@ class SocialGraphTest(TestCase):
             self.graph.no_edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
         except MyException:
             self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 1)
-            self.assertEqual(len(Edge.objects.filter(fromNode_pk=self.users[0].pk,
-                                                     fromNode_type=ContentType.objects.get_for_model(self.users[0]),
-                                                     type=self.relationships['like'],
-                                                     site=self.site)), 1)
+            self.assertEqual(len(Edge.objects.filter(
+                fromNode_pk=self.users[0].pk,
+                fromNode_type=ContentType.objects.get_for_model(self.users[0]),
+                type=self.relationships['like'],
+                site=self.site
+            )), 1)
         edge_deleted.disconnect(raise_exception, Graph)
 
     def test_edge_range_order(self):
@@ -189,17 +253,22 @@ class SocialGraphTest(TestCase):
                                              type=self.relationships['like'],
                                              site=self.site)[0].attributes,
                          {"quantity": 3})
-        self.assertEqual(self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)[0][TO_NODE].name,
-                         self.objects['advanced'].name)
+        self.assertEqual(
+            self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)[0][TO_NODE].name,
+            self.objects['advanced'].name
+        )
         self.assertEqual(
             self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)[0][ATTRIBUTES],
-                         {"quantity": 3})
+            {"quantity": 3}
+        )
 
     def test_edge_change_atomicity(self):
         edge_updated.connect(raise_exception, Graph)
         try:
             self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site)
-            self.graph.edge(self.users[0], self.objects['advanced'], self.relationships['like'], self.site, {"quantity": 3})
+            self.graph.edge(
+                self.users[0], self.objects['advanced'], self.relationships['like'], self.site, {"quantity": 3}
+            )
         except MyException:
             self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 1)
             self.assertEqual(len(self.graph.edge_range(self.users[0], self.relationships['like'], 0, 10, self.site)), 1)
@@ -220,21 +289,25 @@ class SocialGraphTest(TestCase):
         self.graph.edge(self.users[0], self.objects['limited'], self.relationships['like'], self.site)
         self.graph.edge(self.users[0], self.objects['admin'], self.relationships['like'], self.site)
 
-        edges = self.graph.edges_get(self.users[0], self.relationships['like'],
-                                     [self.objects['advanced'], self.objects['limited'], self.objects['dummy']], self.site)
+        edges = self.graph.edges_get(
+            self.users[0],
+            self.relationships['like'],
+            [self.objects['advanced'], self.objects['limited'], self.objects['dummy']],
+            self.site
+        )
         self.assertEqual(len(edges), 2)
         self.assertEqual(edges[0][TO_NODE].name, self.objects['advanced'].name)
         self.assertEqual(edges[1][TO_NODE].name, self.objects['limited'].name)
 
-    #noinspection PyUnusedLocal
+    # noinspection PyUnusedLocal
     def _created_flag_on(self, **kwargs):
         self.created_flag = True
 
-    #noinspection PyUnusedLocal
+    # noinspection PyUnusedLocal
     def _deleted_flag_on(self, **kwargs):
         self.deleted_flag = True
 
-    #noinspection PyUnusedLocal
+    # noinspection PyUnusedLocal
     def _visited_flag_on(self, **kwargs):
         self.visited_flag = True
 
@@ -290,25 +363,25 @@ class SocialGraphTest(TestCase):
         object_deleted.disconnect(self._deleted_flag_on, B)
         object_visited.disconnect(self._visited_flag_on)
 
-    #noinspection PyProtectedMember
+    # noinspection PyProtectedMember
     def test_singleton(self):
         self.assertEqual(self.graph._instance_count, 1)
         Graph()
         self.assertEqual(self.graph._instance_count, 1)
 
     def test_edge_type_manager(self):
-        id = self.relationships['like'].id
+        pk = self.relationships['like'].id
         name = self.relationships['like'].name
         # first time we call get()
         self.assertEqual(EdgeType.objects.get(name=name), self.relationships['like'])
-        self.assertIn(id, EdgeType.objects._cache[EdgeType.objects.db])
-        self.assertEqual(EdgeType.objects._cache[EdgeType.objects.db][id], self.relationships['like'])
+        self.assertIn(pk, EdgeType.objects._cache[EdgeType.objects.db])
+        self.assertEqual(EdgeType.objects._cache[EdgeType.objects.db][pk], self.relationships['like'])
         self.assertIn(name, EdgeType.objects._cache[EdgeType.objects.db])
         self.assertEqual(EdgeType.objects._cache[EdgeType.objects.db][name], self.relationships['like'])
         # from second time we call get() on, the edge type should be got from cache, without hitting the db
         self.assertEqual(EdgeType.objects.get(name=name), self.relationships['like'])
-        self.assertEqual(EdgeType.objects.get(id=id), self.relationships['like'])
-        self.assertEqual(EdgeType.objects.get(pk=id), self.relationships['like'])
+        self.assertEqual(EdgeType.objects.get(id=pk), self.relationships['like'])
+        self.assertEqual(EdgeType.objects.get(pk=pk), self.relationships['like'])
         # clear cache
         EdgeType.objects.clear_cache()
         self.assertNotIn(EdgeType.objects.db, EdgeType.objects._cache)
@@ -319,11 +392,21 @@ class SocialGraphTest(TestCase):
         association = EdgeTypeAssociation.objects.get_for_direct_edge_type(self.relationships['like'])
         self.assertEqual(association.inverse, self.relationships['liked_by'])
         self.assertIn(association.id, EdgeTypeAssociation.objects._cache[EdgeTypeAssociation.objects.db])
-        self.assertEqual(EdgeTypeAssociation.objects._cache[EdgeTypeAssociation.objects.db][association.id], association)
+        self.assertEqual(
+            EdgeTypeAssociation.objects._cache[EdgeTypeAssociation.objects.db][association.id], association
+        )
         self.assertIn(association.direct.id, EdgeTypeAssociation.objects._direct_cache[EdgeTypeAssociation.objects.db])
-        self.assertEqual(EdgeTypeAssociation.objects._direct_cache[EdgeTypeAssociation.objects.db][association.direct.id], association)
-        self.assertIn(association.inverse.id, EdgeTypeAssociation.objects._inverse_cache[EdgeTypeAssociation.objects.db])
-        self.assertEqual(EdgeTypeAssociation.objects._inverse_cache[EdgeTypeAssociation.objects.db][association.inverse.id], association)
+        self.assertEqual(
+            EdgeTypeAssociation.objects._direct_cache[EdgeTypeAssociation.objects.db][association.direct.id],
+            association
+        )
+        self.assertIn(
+            association.inverse.id, EdgeTypeAssociation.objects._inverse_cache[EdgeTypeAssociation.objects.db]
+        )
+        self.assertEqual(
+            EdgeTypeAssociation.objects._inverse_cache[EdgeTypeAssociation.objects.db][association.inverse.id],
+            association
+        )
 
     def test_edge_form_descendants(self):
         like = self.relationships['like']
@@ -351,7 +434,7 @@ class SocialGraphTest(TestCase):
         form = LikeForm(dict(**data))
         self.assertTrue(form.is_valid())
 
-        edge = form.save()
+        form.save()
 
         # then check the edge list
         self.assertEqual(self.graph.edge_count(self.users[0], self.relationships['like'], self.site), 1)
@@ -380,7 +463,6 @@ class SocialGraphTest(TestCase):
             site = forms.ModelChoiceField(Site.objects.all())
             rating = forms.CharField()
             favorite = forms.BooleanField()
-
 
         data = {
             'user': self.users[0].pk,

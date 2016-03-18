@@ -1,17 +1,12 @@
 # coding=utf-8
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import F
-from social_graph.api import Graph
-from social_graph.models import EdgeTypeAssociation, Edge, EdgeCount, EdgeType
-
-
-graph = Graph()
 
 
 class SymmetricEdgeManager(object):
 
     @staticmethod
     def create_symmetric_edge(sender, instance, created, **kwargs):
+        from .models import EdgeTypeAssociation, Edge
         if not instance.auto:
             try:
                 symmetric_type = EdgeTypeAssociation.objects.get(direct=instance.type).inverse
@@ -23,15 +18,18 @@ class SymmetricEdgeManager(object):
                                      type=symmetric_type,
                                      site=instance.site)
                 except Edge.DoesNotExist:
-                    graph._add(instance.toNode, instance.fromNode, symmetric_type, instance.site, instance.attributes, auto=True)
+                    from .api import Graph
+                    Graph()._add(instance.toNode, instance.fromNode, symmetric_type, instance.site, instance.attributes, auto=True)
             except EdgeTypeAssociation.DoesNotExist:
                 pass
 
     @staticmethod
     def delete_symmetric_edge(sender, instance, **kwargs):
+        from .models import EdgeTypeAssociation
         try:
             symmetric_type = EdgeTypeAssociation.objects.get(direct=instance.type).inverse
-            graph._delete(instance.toNode, instance.fromNode, symmetric_type, instance.site)
+            from .api import Graph
+            Graph()._delete(instance.toNode, instance.fromNode, symmetric_type, instance.site)
         except EdgeTypeAssociation.DoesNotExist:
             pass
 
@@ -39,6 +37,7 @@ class SymmetricEdgeManager(object):
 class SymmetricEdgeTypeAssociationManager(object):
     @staticmethod
     def create_symmetric_association(sender, instance, created, **kwargs):
+        from .models import EdgeTypeAssociation
         try:
             EdgeTypeAssociation.objects.get(direct=instance.inverse,
                                             inverse=instance.direct)
@@ -49,6 +48,7 @@ class SymmetricEdgeTypeAssociationManager(object):
 
     @staticmethod
     def delete_symmetric_association(sender, instance, **kwargs):
+        from .models import EdgeTypeAssociation
         try:
             symmetric = EdgeTypeAssociation.objects.get(direct=instance.inverse,
                                                         inverse=instance.direct)
@@ -60,6 +60,8 @@ class SymmetricEdgeTypeAssociationManager(object):
 class EdgeCounter(object):
     @staticmethod
     def increase_count(sender, instance, created, **kwargs):
+        from django.db.models import F
+        from .models import EdgeCount
         counter, is_new = EdgeCount.objects.get_or_create(
             fromNode_pk=instance.fromNode.pk,
             fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
@@ -72,8 +74,11 @@ class EdgeCounter(object):
         if not is_new:
             counter.count = F('count') + 1
             counter.save()
+
     @staticmethod
     def decrease_count(sender, instance, **kwargs):
+        from django.db.models import F
+        from .models import EdgeCount
         counter, is_new = EdgeCount.objects.get_or_create(
             fromNode_pk=instance.fromNode.pk,
             fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
@@ -91,8 +96,10 @@ class EdgeCounter(object):
 class EdgeCleaner(object):
     @staticmethod
     def clean_edges(sender, instance, **kwargs):
+        from social_graph.models import EdgeTypeAssociation, Edge, EdgeCount, EdgeType
         if sender in (Edge, EdgeType, EdgeTypeAssociation, EdgeCount):
             return
         types = EdgeType.objects.all()
-        for etype in types:
-            graph._delete_all(instance, etype)
+        for e_type in types:
+            from .api import Graph
+            Graph()._delete_all(instance, e_type)

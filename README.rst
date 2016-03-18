@@ -4,11 +4,17 @@ Django Social Graph
 
 Social graph for Django>=1.6.1
 
-Includes the implementation of django-redis-cache (by Sean Bleier).
-
 
 Changelog
 =========
+
+0.3.0
+-----
+Removed deprecated methods: edge_add(), edge_change(), and edge_delete(). --> BACKWARDS INCOMPATIBILITY
+Uses django-redis-cache as a third party package, and creates a new extended redis cache backend.
+General code refactoring (not loading so many stuff at init.py).
+Minimized module level imports.
+New management command clear_graph_cache
 
 0.2.0
 -----

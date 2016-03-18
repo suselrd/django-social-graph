@@ -4,10 +4,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.contrib.sites.managers import CurrentSiteManager
 from django.db import models
-from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
-from social_graph.fields import JSONField
+from .fields import JSONField
+from .consistency_enforcers import *
 
 
 class EdgeTypeManager(models.Manager):
@@ -189,7 +189,7 @@ class Edge(models.Model):
                    'to': self.toNode})
 
 
-@receiver(pre_save, sender=Edge, dispatch_uid='pre_save_edge')
+@receiver(models.signals.pre_save, sender=Edge, dispatch_uid='pre_save_edge')
 def pre_save_handler(instance, **kwargs):
     if not instance.site_id:
         instance.site = getattr(instance.fromNode, 'site', getattr(instance.toNode, 'site', Site.objects.get_current()))
@@ -224,7 +224,52 @@ class EdgeCount(models.Model):
     class Meta:
         unique_together = ['fromNode_type', 'fromNode_pk', 'type', 'site']
 
-@receiver(pre_save, sender=EdgeCount, dispatch_uid='pre_save_edge_count')
+
+@receiver(models.signals.pre_save, sender=EdgeCount, dispatch_uid='pre_save_edge_count')
 def pre_save_count_handler(instance, **kwargs):
     if not instance.site_id:
         instance.site = getattr(instance.fromNode, 'site', Site.objects.get_current())
+
+
+# CONNECT LISTENERS TO ENFORCE GRAPH CONSISTENCY
+
+models.signals.post_save.connect(
+    SymmetricEdgeManager.create_symmetric_edge,
+    sender=Edge,
+    dispatch_uid='create_symmetric_edge'
+)
+models.signals.post_delete.connect(
+    SymmetricEdgeManager.delete_symmetric_edge,
+    sender=Edge,
+    dispatch_uid='delete_symmetric_edge'
+)
+
+models.signals.post_save.connect(
+    SymmetricEdgeTypeAssociationManager.create_symmetric_association,
+    sender=EdgeTypeAssociation,
+    dispatch_uid='create_symmetric_edge_type_association'
+)
+models.signals.post_delete.connect(
+    SymmetricEdgeTypeAssociationManager.delete_symmetric_association,
+    sender=EdgeTypeAssociation,
+    dispatch_uid='delete_symmetric_edge_type_association'
+)
+
+models.signals.post_save.connect(
+    EdgeCounter.increase_count,
+    sender=Edge,
+    dispatch_uid='increase_edge_count'
+)
+models.signals.post_delete.connect(
+    EdgeCounter.decrease_count,
+    sender=Edge,
+    dispatch_uid='decrease_edge_count'
+)
+
+models.signals.post_delete.connect(
+    EdgeCleaner.clean_edges,
+    dispatch_uid='clean_edges'
+)
+
+# Clear the EdgeType cache
+EdgeType.objects.clear_cache()

@@ -49,11 +49,13 @@ class BaseEdgeForm(forms.Form):
         return attributes
 
     def save(self):
-        return self._graph.edge(self.get_origin(),
-                               self.get_target(),
-                               self.get_etype(),
-                               self.get_site(),
-                               attributes=self.get_attributes())
+        return self._graph.edge(
+            self.get_origin(),
+            self.get_target(),
+            self.get_etype(),
+            self.get_site(),
+            attributes=self.get_attributes()
+        )
 
 
 class SpecificEdgeTypeMixin(object):

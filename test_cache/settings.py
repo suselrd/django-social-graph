@@ -7,14 +7,17 @@ DATABASES = {
 }
 
 INSTALLED_APPS = [
+    'django.contrib.contenttypes',
+    'django.contrib.sites',
     'redis_cache',
+    'social_graph',
     'test_cache',
 ]
 
 CACHES = {
     'default': {
-        'BACKEND': 'redis_cache.RedisCache',
-        'LOCATION': '127.0.0.1:6379',
+        'BACKEND': 'social_graph.cache_backend.ExtendedRedisCache',
+        'LOCATION': ['127.0.0.1:6379'],
         'OPTIONS': {  # optional
             'CONNECTION_POOL_CLASS_KWARGS': {
                 'max_connections': 2
