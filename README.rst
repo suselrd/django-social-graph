@@ -8,6 +8,11 @@ Social graph for Django>=1.6.1
 Changelog
 =========
 
+0.3.3
+-----
+Temporarily invalidating edge lists from cache when one of its items must be excluded, until we figure out how to
+get it done correctly.
+
 0.3.2
 -----
 Added spanish translations

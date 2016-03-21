@@ -137,9 +137,8 @@ class Graph(object):
             transaction = self.cache.pipeline()
             transaction.set(edge_key, new_edge)
             if list_key in self.cache:
-                edge_rep = (edge.toNode, edge.attributes, edge.time)
+                transaction.delete(list_key)
                 new_edge_rep = (new_edge.toNode, new_edge.attributes, new_edge.time)
-                transaction.rem_from_sorted_set(list_key, edge_rep)
                 transaction.add_to_sorted_set(list_key, new_edge_rep, mktime(new_edge.time.timetuple()))
             transaction.execute()
 
@@ -197,43 +196,6 @@ class Graph(object):
             edge_rep = (edge.toNode, edge.attributes, edge.time)
             transaction.add_to_sorted_set(list_key, edge_rep, mktime(edge.time.timetuple()))
 
-        # try:  # auto created symmetric edge must be reflected in cache too
-        #     symmetric_etype = EdgeTypeAssociation.objects.get_for_direct_edge_type(etype).inverse
-        #
-        #     symmetric_edge = Edge.objects.get(
-        #         fromNode=to_node,
-        #         toNode=from_node,
-        #         type=symmetric_etype,
-        #         site=site
-        #     )
-        #
-        #     # search for inverse type cache values and update them
-        #     symmetric_count_key = (
-        #         COUNT_KEY_FORMAT % {
-        #             'ctype': ctype2.pk,
-        #             'pk': to_node.pk,
-        #             'etype': symmetric_etype.pk,
-        #             'site': site.pk
-        #         }
-        #     )
-        #     symmetric_list_key = (
-        #         EDGE_LIST_KEY_FORMAT % {
-        #             'ctype': ctype2.pk,
-        #             'pk': to_node.pk,
-        #             'etype': symmetric_etype.pk,
-        #             'site': site.pk
-        #         }
-        #     )
-        #
-        #     if symmetric_count_key in self.cache:
-        #         transaction.incr(symmetric_count_key)
-        #     if symmetric_list_key in self.cache:
-        #         symmetric_edge_rep = (symmetric_edge.toNode, symmetric_edge.attributes, symmetric_edge.time)
-        #         transaction.add_to_sorted_set(symmetric_list_key, symmetric_edge_rep, mktime(symmetric_edge.time.timetuple()))
-        #
-        # except EdgeTypeAssociation.DoesNotExist:
-        #     pass
-
         transaction.execute()
         signals.edge_created.send(sender=etype, instance=edge)
         return edge
@@ -272,14 +234,17 @@ class Graph(object):
                 site=site
             )
             edge.delete()
+
             # delete from cache: update all cached values that this edge impacts on
+            count_cached = count_key in self.cache
+            list_cached = list_key in self.cache
+
             transaction = self.cache.pipeline()
             transaction.delete(edge_key)
-            if count_key in self.cache:
+            if count_cached:
                 transaction.decr(count_key)
-            if list_key in self.cache:
-                edge_rep = (edge.toNode, edge.attributes, edge.time)
-                transaction.rem_from_sorted_set(list_key, edge_rep)
+            if list_cached:
+                transaction.delete(list_key)  # invalidate the hole list
             transaction.execute()
             signals.edge_deleted.send(sender=etype, instance=edge)
             return True
