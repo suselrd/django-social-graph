@@ -8,6 +8,10 @@ Social graph for Django>=1.6.1
 Changelog
 =========
 
+0.3.4
+-----
+Fixed edge cleaner.
+
 0.3.3
 -----
 Temporarily invalidating edge lists from cache when one of its items must be excluded, until we figure out how to

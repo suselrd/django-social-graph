@@ -272,7 +272,7 @@ models.signals.post_delete.connect(
     dispatch_uid='decrease_edge_count'
 )
 
-models.signals.post_delete.connect(
+models.signals.pre_delete.connect(
     EdgeCleaner.clean_edges,
     dispatch_uid='clean_edges'
 )
