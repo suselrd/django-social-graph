@@ -1,5 +1,4 @@
 # coding=utf-8
-from django.contrib.contenttypes.models import ContentType
 
 
 class SymmetricEdgeManager(object):
@@ -12,14 +11,21 @@ class SymmetricEdgeManager(object):
                 symmetric_type = EdgeTypeAssociation.objects.get(direct=instance.type).inverse
                 try:
                     Edge.objects.get(fromNode_pk=instance.toNode.pk,
-                                     fromNode_type=ContentType.objects.get_for_model(instance.toNode),
+                                     fromNode_type_id=instance.toNode_type_id,
                                      toNode_pk=instance.fromNode.pk,
-                                     toNode_type=ContentType.objects.get_for_model(instance.fromNode),
+                                     toNode_type_id=instance.fromNode_type_id,
                                      type=symmetric_type,
                                      site=instance.site)
                 except Edge.DoesNotExist:
                     from .api import Graph
-                    Graph()._add(instance.toNode, instance.fromNode, symmetric_type, instance.site, instance.attributes, auto=True)
+                    Graph()._add(
+                        instance.toNode,
+                        instance.fromNode,
+                        symmetric_type,
+                        instance.site,
+                        instance.attributes,
+                        auto=True
+                    )
             except EdgeTypeAssociation.DoesNotExist:
                 pass
 
@@ -63,8 +69,8 @@ class EdgeCounter(object):
         from django.db.models import F
         from .models import EdgeCount
         counter, is_new = EdgeCount.objects.get_or_create(
-            fromNode_pk=instance.fromNode.pk,
-            fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
+            fromNode_pk=instance.fromNode_pk,
+            fromNode_type_id=instance.fromNode_type_id,
             type=instance.type,
             site=instance.site,
             defaults={
@@ -80,8 +86,8 @@ class EdgeCounter(object):
         from django.db.models import F
         from .models import EdgeCount
         counter, is_new = EdgeCount.objects.get_or_create(
-            fromNode_pk=instance.fromNode.pk,
-            fromNode_type=ContentType.objects.get_for_model(instance.fromNode),
+            fromNode_pk=instance.fromNode_pk,
+            fromNode_type_id=instance.fromNode_type_id,
             type=instance.type,
             site=instance.site,
             defaults={

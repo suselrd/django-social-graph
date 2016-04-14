@@ -105,45 +105,8 @@ class Graph(object):
     @atomic
     def edge(self, from_node, to_node, etype, site, attributes="{}"):
         from .models import Edge
-        from social_graph import signals
-
-        ctype1 = ContentType.objects.get_for_model(from_node)
-        ctype2 = ContentType.objects.get_for_model(to_node)
         try:
-            edge = Edge.objects.get(fromNode_pk=from_node.pk, fromNode_type=ctype1, toNode_pk=to_node.pk,
-                                    toNode_type=ctype2, type=etype, site=site)
-            edge.delete()
-            new_edge = Edge.objects.create(
-                fromNode=from_node,
-                toNode=to_node,
-                type=etype,
-                attributes=attributes,
-                site=site
-            )
-            # find all cached values that this edge impacts on, and update them
-            edge_key = (EDGE_KEY_FORMAT
-                        % {'ctype1': ctype1.pk,
-                           'pk1': from_node.pk,
-                           'etype': etype.pk,
-                           'ctype2': ctype2.pk,
-                           'pk2': to_node.pk,
-                           'site': site.pk})
-            list_key = (EDGE_LIST_KEY_FORMAT
-                        % {'ctype': ctype1.pk,
-                           'pk': from_node.pk,
-                           'etype': etype.pk,
-                           'site': site.pk})
-
-            transaction = self.cache.pipeline()
-            transaction.set(edge_key, new_edge)
-            if list_key in self.cache:
-                transaction.delete(list_key)
-                new_edge_rep = (new_edge.toNode, new_edge.attributes, new_edge.time)
-                transaction.add_to_sorted_set(list_key, new_edge_rep, mktime(new_edge.time.timetuple()))
-            transaction.execute()
-
-            signals.edge_updated.send(sender=etype, instance=new_edge)
-            return new_edge
+            return self._update(from_node, to_node, etype, site, attributes)
         except Edge.DoesNotExist:
             return self._add(from_node, to_node, etype, site, attributes)
 
@@ -152,9 +115,9 @@ class Graph(object):
 
     # Private Methods #
 
-    @atomic
+    @atomic   # TODO make _add accepts content_type_id and pk instead of from_node and to_node
     def _add(self, from_node, to_node, etype, site, attributes="{}", auto=False):
-        from .models import Edge, EdgeTypeAssociation
+        from .models import Edge
         from social_graph import signals
 
         edge = Edge.objects.create(
@@ -169,23 +132,32 @@ class Graph(object):
         # write to cache, find all cached values that this new edge impacts on, and update them
         ctype1 = ContentType.objects.get_for_model(from_node)
         ctype2 = ContentType.objects.get_for_model(to_node)
-        edge_key = (EDGE_KEY_FORMAT
-                    % {'ctype1': ctype1.pk,
-                       'pk1': from_node.pk,
-                       'etype': etype.pk,
-                       'ctype2': ctype2.pk,
-                       'pk2': to_node.pk,
-                       'site': site.pk})
-        count_key = (COUNT_KEY_FORMAT
-                     % {'ctype': ctype1.pk,
-                        'pk': from_node.pk,
-                        'etype': etype.pk,
-                        'site': site.pk})
-        list_key = (EDGE_LIST_KEY_FORMAT
-                    % {'ctype': ctype1.pk,
-                       'pk': from_node.pk,
-                       'etype': etype.pk,
-                       'site': site.pk})
+        edge_key = (
+            EDGE_KEY_FORMAT % {
+                'ctype1': ctype1.pk,
+                'pk1': from_node.pk,
+                'etype': etype.pk,
+                'ctype2': ctype2.pk,
+                'pk2': to_node.pk,
+                'site': site.pk
+            }
+        )
+        count_key = (
+            COUNT_KEY_FORMAT % {
+                'ctype': ctype1.pk,
+                'pk': from_node.pk,
+                'etype': etype.pk,
+                'site': site.pk
+            }
+        )
+        list_key = (
+            EDGE_LIST_KEY_FORMAT % {
+                'ctype': ctype1.pk,
+                'pk': from_node.pk,
+                'etype': etype.pk,
+                'site': site.pk
+            }
+        )
 
         transaction = self.cache.pipeline()
         transaction.set(edge_key, edge)
@@ -200,30 +172,96 @@ class Graph(object):
         signals.edge_created.send(sender=etype, instance=edge)
         return edge
 
-    @atomic
+    @atomic   # TODO make _update accepts content_type_id and pk instead of from_node and to_node
+    def _update(self, from_node, to_node, etype, site, attributes="{}"):
+        from social_graph import signals
+        from .models import Edge
+
+        ctype1 = ContentType.objects.get_for_model(from_node)
+        ctype2 = ContentType.objects.get_for_model(to_node)
+
+        edge = Edge.objects.get(
+            fromNode_pk=from_node.pk,
+            fromNode_type=ctype1,
+            toNode_pk=to_node.pk,
+            toNode_type=ctype2,
+            type=etype,
+            site=site
+        )
+        edge.delete()
+
+        new_edge = Edge.objects.create(
+            fromNode=from_node,
+            toNode=to_node,
+            type=etype,
+            attributes=attributes,
+            site=site
+        )
+
+        # find all cached values that this edge impacts on, and update them
+        edge_key = (
+            EDGE_KEY_FORMAT % {
+                'ctype1': ctype1.pk,
+                'pk1': from_node.pk,
+                'etype': etype.pk,
+                'ctype2': ctype2.pk,
+                'pk2': to_node.pk,
+                'site': site.pk
+            }
+        )
+        list_key = (
+            EDGE_LIST_KEY_FORMAT % {
+                'ctype': ctype1.pk,
+                'pk': from_node.pk,
+                'etype': etype.pk,
+                'site': site.pk
+            }
+        )
+
+        list_cached = list_key in self.cache
+
+        transaction = self.cache.pipeline()
+        transaction.set(edge_key, new_edge)
+        if list_cached:
+            transaction.delete(list_key)  # invalidate the hole list
+        transaction.execute()
+
+        signals.edge_updated.send(sender=etype, instance=new_edge)
+        return new_edge
+
+    @atomic   # TODO make _delete accepts content_type_id and pk instead of from_node and to_node
     def _delete(self, from_node, to_node, etype, site):
-        from .models import Edge, EdgeTypeAssociation
+        from .models import Edge
         from social_graph import signals
 
         ctype1 = ContentType.objects.get_for_model(from_node)
         ctype2 = ContentType.objects.get_for_model(to_node)
-        edge_key = (EDGE_KEY_FORMAT
-                    % {'ctype1': ctype1.pk,
-                       'pk1': from_node.pk,
-                       'etype': etype.pk,
-                       'ctype2': ctype2.pk,
-                       'pk2': to_node.pk,
-                       'site': site.pk})
-        count_key = (COUNT_KEY_FORMAT
-                     % {'ctype': ctype1.pk,
-                        'pk': from_node.pk,
-                        'etype': etype.pk,
-                        'site': site.pk})
-        list_key = (EDGE_LIST_KEY_FORMAT
-                    % {'ctype': ctype1.pk,
-                       'pk': from_node.pk,
-                       'etype': etype.pk,
-                       'site': site.pk})
+        edge_key = (
+            EDGE_KEY_FORMAT % {
+                'ctype1': ctype1.pk,
+                'pk1': from_node.pk,
+                'etype': etype.pk,
+                'ctype2': ctype2.pk,
+                'pk2': to_node.pk,
+                'site': site.pk
+            }
+        )
+        count_key = (
+            COUNT_KEY_FORMAT % {
+                'ctype': ctype1.pk,
+                'pk': from_node.pk,
+                'etype': etype.pk,
+                'site': site.pk
+            }
+        )
+        list_key = (
+            EDGE_LIST_KEY_FORMAT % {
+                'ctype': ctype1.pk,
+                'pk': from_node.pk,
+                'etype': etype.pk,
+                'site': site.pk
+            }
+        )
         try:
             edge = Edge.objects.get(
                 fromNode_pk=from_node.pk,

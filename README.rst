@@ -8,6 +8,10 @@ Social graph for Django>=1.6.1
 Changelog
 =========
 
+0.3.5
+-----
+Fixed edge update procedure (cache policy).
+
 0.3.4
 -----
 Fixed edge cleaner.
